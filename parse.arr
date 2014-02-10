@@ -44,7 +44,7 @@ data Decl<E>:
 end
 
 data Bind<E>:
-  | Bind(n :: String, t :: E)
+  | bind(n :: String, t :: E)
 end
 
 data Case<E>:
