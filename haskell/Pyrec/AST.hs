@@ -17,7 +17,9 @@ data PExpr id expr
   | Ident id
   | Number Double
   | Str String
-  | Error String expr
+
+--  | Error String expr
+
   | TType
   | TUnknown
   | TAny
@@ -27,11 +29,11 @@ data PExpr id expr
   deriving (Eq)
 
 data Decl id expr
-  = Val (Bind id expr) expr
-  | Var (Bind id expr) expr
+  = Val (Bind id expr) --expr
+  | Var (Bind id expr) --expr
   | Data id [id] [Variant id expr]
   deriving (Eq)
-           
+
 data Bind id expr = Bind id expr
                   deriving (Eq)
 
