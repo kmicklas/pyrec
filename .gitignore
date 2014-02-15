@@ -1,0 +1,15 @@
+# Misc Junk
+*~
+
+# Haskell
+dist
+cabal-dev
+*.o
+*.hi
+*.chi
+*.chs.h
+.virthualenv
+.hsenv
+.cabal-sandbox/
+cabal.sandbox.config
+cabal.config
