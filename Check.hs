@@ -16,24 +16,30 @@ data TExpr = As Expr Expr deriving Eq
 type Expr = PExpr LExpr
 
 data PExpr e
-  = Let (Decl e) e
-  | Graph [Decl e] e
+  = Def (Def e) e
   | Assign Id e
   | Cases e [Case e]
   | Try e e
   | Fun [Id] e
   | App e [e]
+  | ParamApp e [e]
   | Ident Id
   | Number Double
   | Str String
   | Error String e
   | TType
+  | TParamType [Id]
   | TUnknown
   | TAny
   | TNum
   | TStr
   | TFun [Id] [Bind e] e
+  | TParam [Id] e
   deriving Eq
+
+data Def e
+  = Let (Decl e)
+  | Graph [Decl e]
 
 data Decl e
   = Val (Bind e) e
@@ -56,7 +62,13 @@ data Variant e = Variant Id (Maybe [Bind e]) deriving Eq
 
 
 
-type Env = Map Id LExpr
+type Env = [Def LExpr]
+
+lookup :: Loc -> Id -> Env -> LExpr
+lookup l id [] = At l TUnknown $ Error ("Unbound identifier: " + show id)
+                                       $ At l TUnkown $ Id id
+lookup l id (Val (Bind n _) v) | id == n = v
+lookup l id (Data n _ 
 
 eval :: LExpr -> Env -> LExpr
 eval (At _ _ (Let (Val (Bind id _) v) e)) env = eval e $ insert id (eval v env) env
