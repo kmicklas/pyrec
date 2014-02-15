@@ -1,6 +1,6 @@
 module Pyrec.Check where
 
-import Data.Map as M
+import qualified Data.Map as M
 import Data.Map (Map)
 
 type Loc = Int
@@ -26,7 +26,9 @@ data PExpr e
   | Ident Id
   | Number Double
   | Str String
+
   | Error String e
+
   | TType
   | TParamType [Id]
   | TUnknown
@@ -40,6 +42,7 @@ data PExpr e
 data Def e
   = Let (Decl e)
   | Graph [Decl e]
+  deriving Eq
 
 data Decl e
   = Val (Bind e) e
@@ -71,7 +74,7 @@ lookup l id (Val (Bind n _) v) | id == n = v
 lookup l id (Data n _ 
 
 eval :: LExpr -> Env -> LExpr
-eval (At _ _ (Let (Val (Bind id _) v) e)) env = eval e $ insert id (eval v env) env
+eval (At _ _ (Def (Let (Val (Bind id _) v)) e)) env = eval e $ insert id (eval v env) env
 eval e@(At l t (Ident id)) env =
   case M.lookup id env of
     Just v  -> v
