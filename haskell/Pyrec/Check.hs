@@ -1,4 +1,4 @@
-module Check where
+module Pyrec.Check where
 
 import Data.Map as M
 import Data.Map (Map)
