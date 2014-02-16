@@ -7,32 +7,33 @@ data Id
   | Gen String
   deriving (Eq, Show, Ord)
 
-data LExpr = At Loc Expr Expr deriving Eq
-data TExpr = As Expr Expr deriving Eq
+data LExpr = At Loc Type Expr deriving Eq
+data TExpr = As Type Expr deriving Eq
 
 type Expr = PExpr LExpr
 
 data PExpr e
   = Def (Def e) e
   | Assign Id e
-  | Cases e [Case e]
-  | Try e e
+  | Cases Type e [Case e]
+  | Try e Bind e
   | Fun [Id] e
   | App e [e]
-  | ParamApp e [e]
   | Ident Id
   | Unresolved String
   | Number Double
   | Str String
-  | Error String e
-  | TType
-  | TParamType [Id]
-  | TUnknown
+  | Error ErrorMessage e
+  deriving Eq
+
+data Type
+  = TUnknown
   | TAny
   | TNum
   | TStr
-  | TFun [Id] [Bind e] e
-  | TParam [Id] e
+  | TIdent Id
+  | TUnresolved String
+  | TFun [Bind] Type
   deriving Eq
 
 data Def e
@@ -41,18 +42,22 @@ data Def e
   deriving Eq
 
 data Decl e
-  = Val (Bind e) e
-  | Var (Bind e) e
-  | Data Id [Id] [Variant e]
+  = Val Bind e
+  | Var Bind e
+  | Data Id [Variant]
   deriving Eq
 
-data Bind e = Bind Id e deriving Eq
+data Bind = Bind Id Type deriving Eq
 
-data Case e = Case (Pattern e) e deriving Eq
+data Case e = Case Pattern e deriving Eq
 
-data Pattern e
-  = Constr Id (Maybe [Pattern e])
-  | Binding (Bind e)
+data Pattern
+  = Constr Id (Maybe [Pattern])
+  | Binding Bind
   deriving Eq
 
-data Variant e = Variant Id (Maybe [Bind e]) deriving Eq
+data Variant = Variant Id (Maybe [Bind]) deriving Eq
+
+data ErrorMessage
+  = Unbound String
+  deriving Eq
