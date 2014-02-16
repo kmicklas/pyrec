@@ -21,6 +21,7 @@ data PExpr e
   | App e [e]
   | ParamApp e [e]
   | Ident Id
+  | Unresolved String
   | Number Double
   | Str String
   | Error String e
