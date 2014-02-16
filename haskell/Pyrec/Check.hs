@@ -18,7 +18,8 @@ tc (At l t e) env = case e of
   (Ident id) -> At l (unify t t' env) $ Ident id'
     where (id', t') = resolve id env
 
-  (Number n) -> At l (unify t TNum env) $ Number n
+  (Num n) -> At l (unify t TNum env) $ Num n
+  (Str s) -> At l (unify t TStr env) $ Str s
 
 tcLet l t id vt v e env kind = At l t $ Def newDef $ fixType e t newEnv
   where vc@(At _ vt _) = fixType v (checkT vt env) env

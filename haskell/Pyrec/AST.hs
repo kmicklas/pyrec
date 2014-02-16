@@ -18,7 +18,7 @@ data PExpr exp
   | Fun [Id] exp
   | App exp [exp]
   | Ident Id
-  | Number Double
+  | Num Double
   | Str String
   | Error ErrorMessage exp
   deriving Eq
