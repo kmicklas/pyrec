@@ -23,11 +23,10 @@ tc (At l t (Ident id)) env = At l (unify t t' env) $ Ident id'
 
 tc (At l t (Number n)) env = At l (unify t TNum env) $ Number n
 
-tcLet l t id vt v e env kind =
-  let vc@(At _ vt _) = fixType v (checkT vt env) env
-      newDef         = Let (kind (Bind id vt) vc)
-      newEnv         = newDef : env
-  in At l t $ Def newDef $ fixType e t newEnv
+tcLet l t id vt v e env kind = At l t $ Def newDef $ fixType e t newEnv
+  where vc@(At _ vt _) = fixType v (checkT vt env) env
+        newDef         = Let (kind (Bind id vt) vc)
+        newEnv         = newDef : env
 
 resolve :: Id -> Env -> (Id, Type)
 resolve = undefined
