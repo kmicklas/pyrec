@@ -10,17 +10,17 @@ data Id
 
 data LExpr = At Loc Type (PExpr LExpr) deriving Eq
 
-data PExpr e
-  = Def (Def e) e
-  | Assign Id e
-  | Cases Type e [Case e]
-  | Try e Bind e
-  | Fun [Id] e
-  | App e [e]
+data PExpr exp
+  = Def (Def exp) exp
+  | Assign Id exp
+  | Cases Type exp [Case exp]
+  | Try exp Bind exp
+  | Fun [Id] exp
+  | App exp [exp]
   | Ident Id
   | Number Double
   | Str String
-  | Error ErrorMessage e
+  | Error ErrorMessage exp
   deriving Eq
 
 data Type
@@ -33,20 +33,20 @@ data Type
   | TError ErrorMessage Type
   deriving Eq
 
-data Def e
-  = Let (Decl e)
-  | Graph [Decl e]
+data Def exp
+  = Let (Decl exp)
+  | Graph [Decl exp]
   deriving Eq
 
-data Decl e
-  = Val Bind e
-  | Var Bind e
+data Decl exp
+  = Val Bind exp
+  | Var Bind exp
   | Data Id [Variant]
   deriving Eq
 
 data Bind = Bind Id Type deriving Eq
 
-data Case e = Case Pattern e deriving Eq
+data Case exp = Case Pattern exp deriving Eq
 
 data Pattern
   = Constr Id (Maybe [Pattern])
