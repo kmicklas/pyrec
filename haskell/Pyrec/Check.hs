@@ -21,10 +21,11 @@ tc (At l t e) env = case e of
   (Num n) -> At l (unify t TNum env) $ Num n
   (Str s) -> At l (unify t TStr env) $ Str s
 
-tcLet l t id vt v e env kind = At l t $ Def newDef $ fixType e t newEnv
-  where vc@(At _ vt _) = fixType v (checkT vt env) env
-        newDef         = Let (kind (Bind id vt) vc)
-        newEnv         = newDef : env
+tcLet l t id vt v e env kind = At l t' $ Def newDef $ e'
+  where vc@(At _ vt' _) = fixType v vt env
+        newDef          = Let (kind (Bind id vt') vc)
+        newEnv          = newDef : env
+        e'@(At _ t'  _) = fixType e t newEnv
 
 resolve :: Id -> Env -> (Id, Type)
 resolve = undefined
