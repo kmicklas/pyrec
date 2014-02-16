@@ -11,15 +11,17 @@ data Id
 data LExpr = At Loc Type (PExpr LExpr) deriving Eq
 
 data PExpr exp
-  = Def (Def exp) exp
+  = Num Double
+  | Str String
+  | Ident Id
+  | Fun [Id] exp
+
+  | Def (Def exp) exp
+  | App exp [exp]
   | Assign Id exp
   | Cases Type exp [Case exp]
   | Try exp Bind exp
-  | Fun [Id] exp
-  | App exp [exp]
-  | Ident Id
-  | Num Double
-  | Str String
+
   | Error ErrorMessage exp
   deriving Eq
 
