@@ -5,6 +5,7 @@ type Loc = Int
 data Id
   = Name Loc String
   | Gen String
+  | Unresolved String
   deriving (Eq, Show, Ord)
 
 data LExpr = At Loc Type (PExpr LExpr) deriving Eq
@@ -17,7 +18,6 @@ data PExpr e
   | Fun [Id] e
   | App e [e]
   | Ident Id
-  | Unresolved String
   | Number Double
   | Str String
   | Error ErrorMessage e
@@ -29,8 +29,8 @@ data Type
   | TNum
   | TStr
   | TIdent Id
-  | TUnresolved String
-  | TFun [Bind] Type
+  | TFun [Type] Type
+  | TError ErrorMessage Type
   deriving Eq
 
 data Def e
