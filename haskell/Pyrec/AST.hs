@@ -7,10 +7,7 @@ data Id
   | Gen String
   deriving (Eq, Show, Ord)
 
-data LExpr = At Loc Type Expr deriving Eq
-data TExpr = As Type Expr deriving Eq
-
-type Expr = PExpr LExpr
+data LExpr = At Loc Type (PExpr LExpr) deriving Eq
 
 data PExpr e
   = Def (Def e) e
