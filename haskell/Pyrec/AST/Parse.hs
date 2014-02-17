@@ -13,6 +13,12 @@ data Bind
 data Type
   = T (A.Type Id Type)
   | TUnknown
+  | TError TypeError
+  deriving Eq
+
+data TypeError
+  = TMismatch {expected :: Type, got :: Type}
+  | TExtraArg
   deriving Eq
 
 data Expr = E Loc Type (A.Expr Bind Id Expr Type)

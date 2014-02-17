@@ -16,7 +16,6 @@ data ErrorMessage
   = Unbound    String
   | MutateVal  Id
   | TypeAsExpr Id
-  | TypeError  {expected :: Type, got :: Type}
   deriving Eq
 
 bad :: Loc
