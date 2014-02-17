@@ -17,8 +17,8 @@ data Type
   deriving Eq
 
 data TypeError
-  = TMismatch {expected :: Type, got :: Type}
-  | TExtraArg
+  = TypeMismatch {expected :: Type, got :: Type}
+  | ExtraArg
   deriving Eq
 
 data Expr = E Loc Type (A.Expr Bind Id Expr Type)

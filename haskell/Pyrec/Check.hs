@@ -47,9 +47,9 @@ tc env (P.E l t e) = case e of
           args' = map (tc env) args
           getT (C.E _ t _) = t
           ft = P.T $ TFun (map getT args') t
-          k = case ft' of
-            P.T (TFun _ retT) -> se retT
-            _                 -> C.Error (C.TypeError ft ft') . se t
+          k = se $ case ft' of
+            P.T (TFun _ retT) -> retT
+            _                 -> (P.TError $ P.TypeMismatch ft ft')
   
   where se = C.E l
 
