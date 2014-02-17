@@ -5,9 +5,10 @@ import Prelude (Float, Double, String, Show)
 
 import Data.Eq
 import Data.Ord
-
-import Data.Int
 import Data.Maybe
+
+import Data.Bool
+import Data.Int
 
 -- Base ADT
 
@@ -43,8 +44,7 @@ data Def bd id ex
   deriving Eq
 
 data Decl bd id ex
-  = Val bd ex
-  | Var bd ex
+  = Term Bool bd ex
   | Data id [Variant bd id]
   deriving Eq
 
@@ -56,7 +56,7 @@ data Pattern bd id
   | Binding bd
   deriving Eq
 
-data Variant bd id = Variant bd id (Maybe [bd])
+data Variant bd id = Variant id (Maybe [bd])
                    deriving Eq
 
 data ErrorMessage = Unbound String
