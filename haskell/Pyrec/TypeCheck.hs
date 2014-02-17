@@ -27,10 +27,10 @@ tc env (P.E l t e) = case e of
       where i' = C.Bound l i
             e' = se (unify t t' env) $ Ident i'
 
-  Let (Def kind (P.B vl vi vt) v) e -> C.E l t' $ Let newDef $ e'
+  Let (Def kind b@(P.B vl vi vt) v) e -> C.E l t' $ Let (newDef v') $ e'
     where v'@(C.E _ vt' _) = fixType env v vt
-          newDef           = (Def kind (P.B vl vi vt') v')
---          newEnv           = newDef : env
+          newDef q         = Def kind (P.B vl vi vt') q
+          env'             = M.insert vi (newDef ())
           e'@(C.E _ t'  _) = fixType env e t
 
   Assign i v -> case M.lookup i env of
