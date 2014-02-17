@@ -14,7 +14,7 @@ data Expr = E Loc Type (A.Expr Bind Id Expr Type)
 data ErrorMessage
   = Unbound    String
   | MutateVal  Id
-  | DataAsExpr Id
+  | TypeAsExpr Id
   | TypeError  Type Type
   deriving Eq
 
