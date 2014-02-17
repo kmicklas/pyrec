@@ -17,22 +17,22 @@ fixType env (P.E l et e) t = tc env $ P.E l (unify et t env) e
 
 tc :: Env -> P.Expr -> C.Expr
 tc env (P.E l t e) = case e of
-
-  Num n -> C.E l (unify t (P.T TNum) env) $ Num n
-  Str s -> C.E l (unify t (P.T TStr) env) $ Str s
-
+  
+  Num n -> se (unify t (P.T TNum) env) $ Num n
+  Str s -> se (unify t (P.T TStr) env) $ Str s
+  
   Ident i -> case M.lookup i env of
     Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
     Just (Def _ (P.B l _ t') _) -> e'
       where i' = C.Bound l i
             e' = se (unify t t' env) $ Ident i'
-
+  
   Let (Def kind b@(P.B vl vi vt) v) e -> C.E l t' $ Let (newDef v') $ e'
     where v'@(C.E _ vt' _) = fixType env v vt
           newDef q         = Def kind (P.B vl vi vt') q
           env'             = M.insert vi (newDef ())
           e'@(C.E _ t'  _) = fixType env e t
-
+  
   Assign i v -> case M.lookup i env of
     Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
     Just (Def dt (P.B l _ t') _) -> f $ se t'' $ Assign i' v'
@@ -41,7 +41,7 @@ tc env (P.E l t e) = case e of
             f  = case dt of
               Val -> C.Error (C.MutateVal i')
               Var -> id
-
+  
   where se = C.E l
 
 
