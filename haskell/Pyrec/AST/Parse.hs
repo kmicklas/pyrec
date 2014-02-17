@@ -4,12 +4,15 @@ module Pyrec.AST.Parse where
 import qualified Pyrec.AST as A
 
 type Loc = Int
-type ID = String
+type Id = String
 
-data Bind = B Loc String Type
-          deriving Eq
+data Bind
+  = B Loc String Type
+  deriving Eq
 
-data Type = T (A.Type ID Type)
-          deriving Eq
+data Type
+  = T (A.Type Id Type)
+  | TUnknown
+  deriving Eq
 
-data Expr = E Loc Type (A.Expr Bind ID Expr Type)
+data Expr = E Loc Type (A.Expr Bind Id Expr Type)

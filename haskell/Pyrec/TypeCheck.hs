@@ -1,49 +1,53 @@
 module Pyrec.Check where
 
-import Control.Applicative
-
+import qualified Data.Map as M
+import           Data.Map (Map)
 
 import           Pyrec.AST hiding ()
--- import           Pyrec.AST.Parse
-import qualified Pyrec.AST.Parse as S (Loc, Bind(B), Type(T))
-import qualified Pyrec.AST.Scope as S
-import           Pyrec.ScopeCheck (Env)
+import           Pyrec.AST.Parse as P
+import qualified Pyrec.AST.Check as C
+
+type Entry = Decl P.Bind P.Id ()
+
+type Env = Map P.Id Entry
+
+fixType :: Env -> P.Expr -> P.Type -> C.Expr
+fixType env (P.E l et e) t = tc env $ P.E l (unify et t env) e
 
 
-fixType :: S.Expr -> S.Type -> Env -> S.Expr
-fixType (S.E l et e) t env = tc (S.E l (unify et t env) e) env
+tc :: Env -> P.Expr -> C.Expr
+tc env (P.E l t e) = case e of
 
+  Num n -> C.E l (unify t (P.T TNum) env) $ Num n
+  Str s -> C.E l (unify t (P.T TStr) env) $ Str s
 
-tc :: S.Expr -> Env -> S.Expr
-tc (S.E l t e) env = case e of
+  Ident i -> case M.lookup i env of
+    Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
+    Just (Def _ (P.B l _ t') _) -> e'
+      where i' = C.Bound l i
+            e' = se (unify t t' env) $ Ident i'
 
-  (Num n) -> S.E l (unify t (S.T TNum) env) $ Num n
-  (Str s) -> S.E l (unify t (S.T TStr) env) $ Str s
+  Let (Def kind (P.B vl vi vt) v) e -> C.E l t' $ Let newDef $ e'
+    where v'@(C.E _ vt' _) = fixType env v vt
+          newDef           = (Def kind (P.B vl vi vt') v')
+--          newEnv           = newDef : env
+          e'@(C.E _ t'  _) = fixType env e t
 
-  old@(Ident i) -> case i of
-    (S.Bound (S.B _ _ t') _) -> S.E l (unify t t' env) $ Ident i
-    (S.Free _)               -> S.E l t old -- Unbound Ident
+  Assign i v -> case M.lookup i env of
+    Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
+    Just (Def dt (P.B l _ t') _) -> f $ se t'' $ Assign i' v'
+      where i' = C.Bound l i
+            v'@(C.E _ t'' _) = fixType env v $ unify t t' env
+            f  = case dt of
+              Val -> C.Error (C.MutateVal i')
+              Var -> id
 
-  (Def (Let (Val (S.B vl vi vt) v)) e) -> tcLet l t vl vi vt v e env Val
-  (Def (Let (Var (S.B vl vi vt) v)) e) -> tcLet l t vl vi vt v e env Var
+  where se = C.E l
 
-  old@(Assign i v) -> case i of
-    (S.Bound (S.B _ _ t') True) -> S.E l t'' $ Assign i $ e'
-      where e'@(S.E _ t'' _) = fixType v (unify t t' env) env
-
-    _ -> S.E l t old -- Unbound Ident, or mutation of non-variablex
-
-
-
-tcLet l t vl vi vt v e env kind = S.E l t' $ Def newDef $ e'
-  where v'@(S.E _ vt' _) = fixType v vt env
-        newDef           = Let (kind (S.B vl vi vt') v')
---        newEnv           = newDef : env
-        e'@(S.E _ t'  _) = fixType e t env
 
 -- prob don't need
-checkT :: S.Type -> Env -> S.Type
-checkT t env = unify (S.T TUnknown) t env
+checkT :: P.Type -> Env -> P.Type
+checkT t env = unify TUnknown t env
 
-unify :: S.Type -> S.Type -> Env -> S.Type
+unify :: P.Type -> P.Type -> Env -> P.Type
 unify = undefined
