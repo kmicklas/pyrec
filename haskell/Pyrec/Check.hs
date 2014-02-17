@@ -57,13 +57,14 @@ tc env (P.E l t e) = case e of
 checkT :: Env -> P.Type -> P.Type
 checkT env t@(P.T TNum) = t
 checkT env t@(P.T TStr) = t
+checkT env (P.T (TFun args res)) = P.T $ TFun (map (checkT env) args) res
 
 -- expected then got
 unify :: Env -> P.Type -> P.Type -> P.Type
 unify env P.TUnknown t = checkT env t
 unify env t P.TUnknown = checkT env t
-unify env (P.T (TFun aArgs aRes)) (P.T (TFun bArgs bRes)) =
+unify env a@(P.T (TFun aArgs aRes)) b@(P.T (TFun bArgs bRes)) =
   if length aArgs == length bArgs
   then P.T $ TFun (zipWith (unify env) aArgs bArgs) $ unify env aRes bRes
-  else undefined -- how do we put type error here?
-unify env (P.T a) (P.T b) = undefined -- how do we put type error here?
+  else TError $ TypeMismatch a b
+unify env a@(P.T _) b@(P.T _) = TError $ TypeMismatch a b
