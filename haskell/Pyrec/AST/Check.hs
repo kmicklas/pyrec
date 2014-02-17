@@ -8,8 +8,9 @@ data Id
   = Bound Loc String
   deriving Eq
 
-data Expr = E Loc Type (A.Expr Bind Id Expr Type)
-          | Error ErrorMessage Expr
+data Expr
+  = E Loc Type (A.Expr Bind Id Expr Type)
+  | Error ErrorMessage Expr
 
 data ErrorMessage
   = Unbound    String
