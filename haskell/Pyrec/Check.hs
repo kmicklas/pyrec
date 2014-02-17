@@ -11,6 +11,9 @@ type Entry = Decl P.Bind P.Id ()
 
 type Env = Map P.Id Entry
 
+emptyEnv :: Env
+emptyEnv = M.empty
+
 fixType :: Env -> P.Expr -> P.Type -> C.Expr
 fixType env (P.E l et e) t = tc env $ P.E l (unify env et t) e
 
