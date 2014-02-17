@@ -66,8 +66,10 @@ checkT env (P.T (TFun args res)) = P.T $ TFun (map (checkT env) args) res
 
 -- expected then got
 unify :: Env -> P.Type -> P.Type -> P.Type
-unify env P.TUnknown t = checkT env t
-unify env t P.TUnknown = checkT env t
+unify env P.TUnknown t          = checkT env t
+unify env t P.TUnknown          = checkT env t
+unify env (P.T TNum) (P.T TNum) = P.T TNum
+unify env (P.T TStr) (P.T TStr) = P.T TStr
 unify env a@(P.T (TFun aArgs aRes)) b@(P.T (TFun bArgs bRes)) =
   if length aArgs == length bArgs
   then P.T $ TFun (zipWith (unify env) aArgs bArgs) $ unify env aRes bRes
