@@ -27,7 +27,7 @@ tc env (P.E l t e) = case e of
   Str s -> se (unify env t (P.T TStr)) $ Str s
   
   Ident i -> case M.lookup i env of
-    Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
+    Nothing -> se t $ Ident $ C.Unbound i
     Just (Def _ (P.B l _ t') _) -> e'
       where i' = C.Bound l i
             e' = se (unify env t t') $ Ident i'
@@ -35,17 +35,16 @@ tc env (P.E l t e) = case e of
   Let (Def kind b@(P.B vl vi vt) v) e -> C.E l t' $ Let (newDef v') $ e'
     where v'@(C.E _ vt' _) = fixType env v vt
           newDef q         = Def kind (P.B vl vi vt') q
-          env'             = M.insert vi $ newDef ()
-          e'@(C.E _ t'  _) = fixType env e t
+          env'             = M.insert vi (newDef ()) env
+          e'@(C.E _ t'  _) = fixType env' e t
   
   Assign i v -> case M.lookup i env of
-    Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
-    Just (Def dt (P.B l _ t') _) -> f $ se t'' $ Assign i' v'
-      where i' = C.Bound l i
-            v'@(C.E _ t'' _) = fixType env v $ unify env t t'
-            f  = case dt of
-              Val -> C.Error (C.MutateVal i')
-              Var -> id
+    Nothing -> se t $ Ident $ C.Unbound i
+    Just (Def dt (P.B l _ t') _) -> se t'' $ Assign i' v'
+      where v'@(C.E _ t'' _) = fixType env v $ unify env t t'
+            i' = case dt of
+              Val -> C.NotMutable l i
+              Var -> C.Bound l i
   
   App f args -> k $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
@@ -60,6 +59,7 @@ tc env (P.E l t e) = case e of
 
 
 checkT :: Env -> P.Type -> P.Type
+checkT env TUnknown     = TUnknown
 checkT env t@(P.T TNum) = t
 checkT env t@(P.T TStr) = t
 checkT env (P.T (TFun args res)) = P.T $ TFun (map (checkT env) args) res
