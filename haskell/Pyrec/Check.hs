@@ -12,20 +12,20 @@ type Entry = Decl P.Bind P.Id ()
 type Env = Map P.Id Entry
 
 fixType :: Env -> P.Expr -> P.Type -> C.Expr
-fixType env (P.E l et e) t = tc env $ P.E l (unify et t env) e
+fixType env (P.E l et e) t = tc env $ P.E l (unify env et t) e
 
 
 tc :: Env -> P.Expr -> C.Expr
 tc env (P.E l t e) = case e of
   
-  Num n -> se (unify t (P.T TNum) env) $ Num n
-  Str s -> se (unify t (P.T TStr) env) $ Str s
+  Num n -> se (unify env t (P.T TNum)) $ Num n
+  Str s -> se (unify env t (P.T TStr)) $ Str s
   
   Ident i -> case M.lookup i env of
     Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
     Just (Def _ (P.B l _ t') _) -> e'
       where i' = C.Bound l i
-            e' = se (unify t t' env) $ Ident i'
+            e' = se (unify env t t') $ Ident i'
   
   Let (Def kind b@(P.B vl vi vt) v) e -> C.E l t' $ Let (newDef v') $ e'
     where v'@(C.E _ vt' _) = fixType env v vt
@@ -37,7 +37,7 @@ tc env (P.E l t e) = case e of
     Nothing -> C.Error (C.Unbound i) $ se t $ Ident $ C.Bound C.bad i
     Just (Def dt (P.B l _ t') _) -> f $ se t'' $ Assign i' v'
       where i' = C.Bound l i
-            v'@(C.E _ t'' _) = fixType env v $ unify t t' env
+            v'@(C.E _ t'' _) = fixType env v $ unify env t t'
             f  = case dt of
               Val -> C.Error (C.MutateVal i')
               Var -> id
@@ -54,9 +54,16 @@ tc env (P.E l t e) = case e of
   where se = C.E l
 
 
--- prob don't need
-checkT :: P.Type -> Env -> P.Type
-checkT t env = unify TUnknown t env
+checkT :: Env -> P.Type -> P.Type
+checkT env t@(P.T TNum) = t
+checkT env t@(P.T TStr) = t
 
-unify :: P.Type -> P.Type -> Env -> P.Type
-unify = undefined
+-- expected then got
+unify :: Env -> P.Type -> P.Type -> P.Type
+unify env P.TUnknown t = checkT env t
+unify env t P.TUnknown = checkT env t
+unify env (P.T (TFun aArgs aRes)) (P.T (TFun bArgs bRes)) =
+  if length aArgs == length bArgs
+  then P.T $ TFun (zipWith (unify env) aArgs bArgs) $ unify env aRes bRes
+  else undefined -- how do we put type error here?
+unify env (P.T a) (P.T b) = undefined -- how do we put type error here?
