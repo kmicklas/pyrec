@@ -30,7 +30,7 @@ tc env (P.E l t e) = case e of
   Let (Def kind b@(P.B vl vi vt) v) e -> C.E l t' $ Let (newDef v') $ e'
     where v'@(C.E _ vt' _) = fixType env v vt
           newDef q         = Def kind (P.B vl vi vt') q
-          env'             = M.insert vi (newDef ())
+          env'             = M.insert vi $ newDef ()
           e'@(C.E _ t'  _) = fixType env e t
   
   Assign i v -> case M.lookup i env of
@@ -41,6 +41,15 @@ tc env (P.E l t e) = case e of
             f  = case dt of
               Val -> C.Error (C.MutateVal i')
               Var -> id
+  
+  App f args -> k $ App f' args'
+    where f'@(C.E _ ft' _) = fixType env f ft
+          args' = map (tc env) args
+          getT (C.E _ t _) = t
+          ft = P.T $ TFun (map getT args') t
+          k = case ft' of
+            P.T (TFun _ retT) -> se retT
+            _                 -> C.Error (C.TypeError ft ft') . se t
   
   where se = C.E l
 
