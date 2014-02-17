@@ -13,7 +13,7 @@ data Expr bd id ex ty
   | Assign id ex
   | Cases ty ex [Case bd id ex]
   | Try ex bd ex
-  deriving Eq
+  deriving (Eq, Show)
 
 data Type id ty
   = TAny
@@ -21,26 +21,26 @@ data Type id ty
   | TStr
   | TIdent id
   | TFun [ty] ty
-  deriving Eq
+  deriving (Eq, Show)
 
 data DefType
   = Val | Var
-  deriving Eq
+  deriving (Eq, Show)
 
 data Decl bd id ex
   = Def DefType bd ex
   | Data id [Variant bd id]
-  deriving Eq
+  deriving (Eq, Show)
 
 data Case bd id ex
   = Case (Pattern bd id) ex
-  deriving Eq
+  deriving (Eq, Show)
 
 data Pattern bd id
   = Constr id (Maybe [Pattern bd id])
   | Binding bd
-  deriving Eq
+  deriving (Eq, Show)
 
 data Variant bd id
   = Variant id (Maybe [bd])
-  deriving Eq
+  deriving (Eq, Show)

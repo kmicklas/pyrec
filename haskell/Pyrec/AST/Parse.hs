@@ -8,17 +8,17 @@ type Id = String
 
 data Bind
   = B Loc String Type
-  deriving Eq
+  deriving (Eq, Show)
 
 data Type
   = T (A.Type Id Type)
   | TUnknown
   | TError TypeError
-  deriving Eq
+  deriving (Eq, Show)
 
 data TypeError
   = TypeMismatch {expected :: Type, got :: Type}
   | ExtraArg
-  deriving Eq
+  deriving (Eq, Show)
 
 data Expr = E Loc Type (A.Expr Bind Id Expr Type)
