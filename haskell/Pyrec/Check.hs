@@ -5,7 +5,7 @@ import           Test.HUnit
 import qualified Data.Map as M
 import           Data.Map (Map)
 
-import           Pyrec.AST hiding ()
+import           Pyrec.AST
 import           Pyrec.AST.Parse as P
 import qualified Pyrec.AST.Check as C
 

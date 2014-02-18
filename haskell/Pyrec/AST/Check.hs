@@ -2,7 +2,7 @@ module Pyrec.AST.Check where
 -- The AST after Checking
 
 import qualified Pyrec.AST as A
-import Pyrec.AST.Parse (Loc, Type, Bind)
+import Pyrec.AST.Parse (Loc, Type, Bind,)
 
 data Id
   = Bound Loc String
@@ -12,9 +12,4 @@ data Id
 
 data Expr
   = E Loc Type (A.Expr Bind Id Expr Type)
-  deriving (Eq, Show)
-
-data ErrorMessage
-  = MutateVal  Id
-  | TypeAsExpr Id
   deriving (Eq, Show)

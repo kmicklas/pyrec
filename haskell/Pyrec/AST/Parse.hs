@@ -18,7 +18,6 @@ data Type
 
 data TypeError
   = TypeMismatch {expected :: Type, got :: Type}
-  | ExtraArg
   deriving (Eq, Show)
 
 data Expr = E Loc Type (A.Expr Bind Id Expr Type)
