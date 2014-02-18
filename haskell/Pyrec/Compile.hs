@@ -37,7 +37,7 @@ ssa env (R.E l _ e) = case e of
           id = bound bind
 
 combine :: Chunk -> Chunk -> Chunk
-combine = undefined
+combine (am, ab, _) (bm, bb, id) = (M.union am bm, ab ++ bb, id)
 
 toModule :: Chunk -> Module
 toModule (m, bs, id) = M.insert "pyret_main" (Fun [] [Block bs $ Return $ Bound id]) m
