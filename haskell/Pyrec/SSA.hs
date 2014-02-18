@@ -21,6 +21,9 @@ data Val
   = Atomic Atom
   | Phi [Id]
   | Call [Atom]
+  | Alloca Atom
+  | Load Id
+  | Assign Id Atom
 
 data Atom
   = Const Id
