@@ -88,3 +88,6 @@ prog1 = e 1 $ eLet 2 "x" (e 3 $ Num 55) $ e 2 $ Ident "x"
 prog2 = e 1 $ eVar 2 "x" (e 3 $ Num 55)
             $ e 4 $ eSeq (e 6 $ Assign "x" $ e 7 $ Num 37)
                   $ e 8 $ Ident "x"
+
+prog3 = e 1 $ App (e 2 $ Ident "f") $ map (\a -> e (round a) $ Num a) [1..4]
+env3  = M.singleton "f" $ Def Val (P.B 9 "f" $ T $ TFun (replicate 4 $ T TNum) $ T TStr) ()
