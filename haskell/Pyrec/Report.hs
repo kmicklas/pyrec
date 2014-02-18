@@ -13,16 +13,24 @@ report (E l t e) = case e of
   Num n -> good $ Num n
   Str s -> good $ Str s
 
-  Fun bds e -> (,) rs $ oe $ Fun bds e'
+  Fun bds e -> bad rs $ Fun bds e'
     where (rs, e') = report e
 
-  Let d e -> (,) (rs1 ++ rs2) $ oe $ Let d' e'
+  Let d e -> bad (rs1 ++ rs2) $ Let d' e'
     where (rs1, d') = decl d
           (rs2, e') = report e
 
-  Graph ds e -> (rs ++ (concat $ map fst temp), e')
-    where temp = map decl ds
-          (rs, e') = report e
+  Graph ds e -> bad (concat rs1 ++ rs2) $ Graph ds' e'
+    where (rs1, ds') = unzip $ map decl ds
+          (rs2, e')  = report e
+
+  App f as -> bad (rs1 ++ concat rs2) $ App f' as'
+    where (rs1, f')  = report f
+          (rs2, as') = unzip $ map report as
+
+  Try e1 bd e2 -> bad (rs1 ++ rs2) $ Try e1' bd e2'
+    where (rs1, e1') = report e1
+          (rs2, e2') = report e2
 
   Ident i -> case i of
     Bound      il is -> stuff il is
@@ -41,7 +49,9 @@ report (E l t e) = case e of
             where err' = (l, err)
 
   where oe e = R.E l t e
-        good e = ([], oe e)
+        bad rs e = (rs, oe e)
+        good e = bad [] e
+
 
 decl :: Decl Bind C.Id C.Expr -> (Errors, Decl Bind R.Id R.Expr)
 decl (Def k b o) = (rs, Def k b o')
