@@ -11,8 +11,11 @@ import           Pyrec.SSA
 type Env = Map Id A.DefType
 type Chunk = (Module, [Bind], Id)
 
-temp :: R.Loc -> Id
-temp l = "%temp%" ++ show l
+tempId :: R.Loc -> Id
+tempId l = "%temp%" ++ show l
+
+constId :: R.Loc -> Id
+constId l = "%const%" ++ show l
 
 bound :: R.Id -> Id
 bound (R.Bound l n) = n ++ "%" ++ show l
@@ -20,13 +23,14 @@ bound (R.Bound l n) = n ++ "%" ++ show l
 ssa :: Env -> R.Expr -> Chunk
 ssa env (R.E l _ e) = case e of
 
-  A.Num n -> (M.singleton id (Num n), [Bind id $ Atomic $ Bound id], id)
-    where id = temp l
+  A.Num n -> (M.singleton cid (Num n), [Bind id $ Atomic $ Const cid], id)
+    where cid = constId l
+          id  = tempId  l
 
   A.Ident id -> case M.lookup (bound id) env of
     Just A.Val -> (M.empty, [], bound id)
     Just A.Var -> (M.empty, [Bind valId $ Load $ bound id], valId)
-      where valId = temp l
+      where valId = tempId l
 
   A.Let (A.Def A.Val (R.B bl n _) v) subE ->
     combine (vm, vb ++ [Bind id $ Atomic $ Bound vid], id)
