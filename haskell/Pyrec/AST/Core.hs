@@ -4,8 +4,9 @@ module Pyrec.AST.Core where
 import qualified Pyrec.AST as A
 import Pyrec.AST.Parse (Loc, Type, Bind, TypeError)
 
-data Id = Bound Loc String
-        deriving (Eq, Show)
+data Id
+  = Bound Loc String
+  deriving (Eq, Show)
 
 data Expr
   = E Loc Type (A.Expr Bind Id Expr Type)
