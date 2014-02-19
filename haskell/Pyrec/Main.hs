@@ -15,6 +15,8 @@ import           Pyrec.Emit
 checkEmit :: P.Expr -> String
 checkEmit e = emit $ compile $ snd $ report $ tc emptyEnv e
 
+main = putStr $ checkEmit prog1
+
 -- TESTING --
 e l = P.E l TUnknown
 
