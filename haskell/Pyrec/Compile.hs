@@ -49,7 +49,7 @@ ssa env (R.E l _ e) = case e of
           bind = R.Bound bl n
           id = bound bind
 
-  A.Assign id v -> (vm, vb ++ [Assign (bound id) $ Bound vid], bound id)
+  A.Assign id v -> (vm, vb ++ [Assign (bound id) $ Bound vid], vid)
     where (vm, vb, vid) = ssa env v
 
   A.App f args -> foldr combine
