@@ -31,7 +31,8 @@ ssa env (R.E l _ e) = case e of
     Just A.Val -> (M.empty, [], bound id)
     Just A.Var -> (M.empty, [Bind valId $ Load $ bound id], valId)
       where valId = tempId l
-    Nothing    -> (M.empty, [], bound id) -- For FFI
+    Nothing    -> (M.empty, [], ffi id) -- For FFI
+      where ffi (R.Bound _ n) = n
 
   A.Let (A.Def A.Val (R.B bl n _) v) subE ->
     combine (vm, vb ++ [Bind id $ Atomic $ Bound vid], id)

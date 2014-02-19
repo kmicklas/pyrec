@@ -8,7 +8,11 @@ import Pyrec.SSA
 
 header =
   "%pyretVal = type i8*\n\n" ++
-  "declare %pyretVal @loadPyretNumber(double *)\n\n"
+  "declare %pyretVal @loadPyretNumber(double *)\n\n" ++
+  "declare %pyretVal @pyretPlus(%pyretVal, %pyretVal)\n" ++
+  "declare %pyretVal @pyretMinus(%pyretVal, %pyretVal)\n" ++
+  "declare %pyretVal @pyretTimes(%pyretVal, %pyretVal)\n" ++
+  "declare %pyretVal @pyretDivide(%pyretVal, %pyretVal)\n\n"
 
 emit :: Module -> String
 emit m = header ++ (M.assocs m >>= ((++ "\n\n") . emitConstant m))
@@ -51,10 +55,13 @@ emitStmt m (Bind id (Load lid)) =
 emitStmt m (Assign id (Bound bid)) =
   "\tstore %pyretVal " ++ bid ++ ", %pyretVal* " ++ id ++ "\n"
 
-emitStmt m (Bind id (Call f args)) =
-  "\t" ++ id ++ "$fn = bitcast %pyretVal " ++ id ++
-                " to %pyretVal(" ++ argType args ++ ")\n" ++
-  "\t" ++ id ++ " = call %pyretVal " ++ id ++ "$fn(" ++ argVals args ++ ")\n"
+emitStmt m (Bind id (Call (Bound fid) args)) =
+  case fid of
+    '@' : _ -> "\t" ++ id ++ " = call %pyretVal " ++ fid ++ "(" ++ argVals args ++ ")\n"
+    _ ->
+      "\t" ++ id ++ "$fn = bitcast %pyretVal " ++ fid ++
+                    " to %pyretVal(" ++ argType args ++ ")*\n" ++
+      "\t" ++ id ++ " = call %pyretVal " ++ id ++ "$fn(" ++ argVals args ++ ")\n"
   where argType as = concat $ intersperse "," $ map (\ _ -> "%pyretVal") as
         argVals as = concat $ intersperse "," $ map (\ (Bound aid) -> "%pyretVal " ++ aid) as
 
