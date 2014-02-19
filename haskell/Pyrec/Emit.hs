@@ -43,7 +43,7 @@ emitStmt m (Bind id (Atomic (Const cid))) =
     Just (Num n) -> "call %pyretVal @loadPyretNumber(double* " ++ cid ++ ")\n" 
     Nothing      -> error "Internal error: bad constant"
 
-emitStmt m (Bind id Alloca) = "\t" ++ id ++ " = alloca %pyretVal*\n"
+emitStmt m (Bind id Alloca) = "\t" ++ id ++ " = alloca %pyretVal\n"
 
 emitStmt m (Bind id (Load lid)) =
   "\t" ++ id ++ " = load %pyretVal* " ++ lid ++ "\n"
