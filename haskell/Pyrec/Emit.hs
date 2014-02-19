@@ -5,15 +5,19 @@ import           Data.Map (Map)
 
 import Pyrec.SSA
 
+header =
+  "%pyretVal = type i8*\n\n" ++
+  "declare %pyretVal @loadPyretNumber(double *)\n\n"
+
 emit :: Module -> String
-emit m = M.assocs m >>= ((++ "\n\n") . emitConstant m)
+emit m = header ++ (M.assocs m >>= ((++ "\n\n") . emitConstant m))
 
 emitConstant :: Module -> (Id, Constant) -> String
 
-emitConstant m (id, Num n) = id ++ " = private unnamed_addr constant double " ++ show n
+emitConstant m (id, Num n) = id ++ " = constant double " ++ show n
 
 emitConstant m (id, Fun params blocks) =
-  "declare " ++ id ++ "(" ++ emitParams params ++ ") {\n" ++
+  "define %pyretVal " ++ id ++ "(" ++ emitParams params ++ ") {\n" ++
   emitBlocks m 0 blocks ++ "}"
 
 emitParams :: [Id] -> String
@@ -30,10 +34,10 @@ emitBlocks m n ((Block binds j) : bs) =
 
 emitBind :: Module -> Bind -> String
 emitBind _ (Bind id (Atomic (Bound bid))) =
-  "\t" ++ id ++ " = %pyretVal " ++ bid ++ "\n"
+  "\t" ++ id ++ " = bitcast %pyretVal " ++ bid ++ " to %pyretVal\n"
 emitBind m (Bind id (Atomic (Const cid))) =
   "\t" ++ id ++ " = " ++ case M.lookup cid m of
-    Just (Num n) -> "call %pyretVal @loadPyretNumber(double " ++ cid ++ ")\n" 
+    Just (Num n) -> "call %pyretVal @loadPyretNumber(double* " ++ cid ++ ")\n" 
     Nothing      -> error "Internal error: bad constant"
 
 emitJump :: Jump -> String
