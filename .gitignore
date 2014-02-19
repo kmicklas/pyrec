@@ -13,3 +13,11 @@ cabal-dev
 .cabal-sandbox/
 cabal.sandbox.config
 cabal.config
+
+# LLVM Junk
+*.bc
+*.ll
+
+# EXEs
+/pyrec
+/program
