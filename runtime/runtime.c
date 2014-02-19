@@ -1,14 +1,16 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <gmp.h>
 
 typedef struct {
 	mpf_t num;
 } pNumber;
 
-pNumber *loadPyretNumber(double n) {
+pNumber *loadPyretNumber(double *n) {
+	printf("Loading number: %f\n", *n);
 	pNumber *ret = malloc(sizeof(pNumber));
-	mpf_init(ret->num);
-	mpf_set_d(ret->num, n);
+	mpf_init_set_d(ret->num, *n);
+	gmp_printf("Loaded: %F\n", ret->num);
 	return ret;
 }
 
