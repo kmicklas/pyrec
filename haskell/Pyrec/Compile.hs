@@ -12,13 +12,13 @@ type Env = Map Id A.DefType
 type Chunk = (Module, [Bind], Id)
 
 tempId :: R.Loc -> Id
-tempId l = "%temp%" ++ show l
+tempId l = "%temp$" ++ show l
 
 constId :: R.Loc -> Id
-constId l = "%const%" ++ show l
+constId l = "@const$" ++ show l
 
 bound :: R.Id -> Id
-bound (R.Bound l n) = n ++ "%" ++ show l
+bound (R.Bound l n) = "%" ++ n ++ "$" ++ show l
 
 ssa :: Env -> R.Expr -> Chunk
 ssa env (R.E l _ e) = case e of
@@ -44,7 +44,7 @@ combine :: Chunk -> Chunk -> Chunk
 combine (am, ab, _) (bm, bb, id) = (M.union am bm, ab ++ bb, id)
 
 toModule :: Chunk -> Module
-toModule (m, bs, id) = M.insert "pyret_main" (Fun [] [Block bs $ Return $ Bound id]) m
+toModule (m, bs, id) = M.insert "@pyret_main" (Fun [] [Block bs $ Return $ Bound id]) m
 
 compile :: R.Expr -> Module
 compile = toModule . ssa M.empty
