@@ -16,7 +16,7 @@ pNumber *loadPyretNumber(double *n) {
 	pNumber *ret = newPyretNumber();
 	printf("Loading number: %f\n", *n);
 	mpf_set_d(ret->num, *n);
-	gmp_printf("Loaded: %F\n", ret->num);
+	gmp_printf("Loaded: %Ff\n", ret->num);
 	return ret;
 }
 
@@ -47,5 +47,5 @@ pNumber *pyretDivide(pNumber *a, pNumber *b) {
 pNumber *pyret_main();
 
 int main() {
-	gmp_printf("%F\n", pyret_main()->num);
+	gmp_printf("%Ff\n", pyret_main()->num);
 }
