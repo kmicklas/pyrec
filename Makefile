@@ -20,7 +20,7 @@ out.ll: pyrec
 %.bc: %.ll
 	$(AS) $(AFLAGS) -o $@ $<
 
-%.bc: %.bc
+%.bc:
 	$(LD) -o $@ $^
 
 %:    %.bc
