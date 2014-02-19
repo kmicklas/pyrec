@@ -14,17 +14,19 @@ data Constant
   | Extern String Int -- number of arguments
   deriving (Show, Eq)
 
-data Block = Block [Bind] Jump deriving (Show, Eq)
+data Block = Block [Statement] Jump deriving (Show, Eq)
 
-data Bind = Bind Id Val deriving (Show, Eq)
+data Statement
+  = Bind Id Val
+  | Assign Id Atom
+  deriving (Show, Eq)
 
 data Val
   = Atomic Atom
   | Phi [Id]
   | Call [Atom]
-  | Alloca Atom
+  | Alloca
   | Load Id
-  | Assign Id Atom
   deriving (Show, Eq)
 
 data Atom
