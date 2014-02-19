@@ -1,7 +1,5 @@
 module Pyrec.Check where
 
-import           Test.HUnit
-
 import qualified Data.Map as M
 import           Data.Map (Map)
 
@@ -75,19 +73,3 @@ unify env a@(P.T (TFun aArgs aRes)) b@(P.T (TFun bArgs bRes)) =
   then P.T $ TFun (zipWith (unify env) aArgs bArgs) $ unify env aRes bRes
   else TError $ TypeMismatch a b
 unify env a@(P.T _) b@(P.T _) = TError $ TypeMismatch a b
-
--- TESTING --
-e l = P.E l TUnknown
-
-eLet l n v i = Let (Def Val (P.B l n TUnknown) v) i
-eVar l n v i = Let (Def Var (P.B l n TUnknown) v) i
-eSeq     v i = Let (Def Val (P.B 0 "%temp" TUnknown) v) i
-
-prog1 = e 1 $ eLet 2 "x" (e 3 $ Num 55) $ e 2 $ Ident "x"
-
-prog2 = e 1 $ eVar 2 "x" (e 3 $ Num 55)
-            $ e 4 $ eSeq (e 6 $ Assign "x" $ e 7 $ Num 37)
-                  $ e 8 $ Ident "x"
-
-prog3 = e 1 $ App (e 2 $ Ident "f") $ map (\a -> e (round a) $ Num a) [1..4]
-env3  = M.singleton "f" $ Def Val (P.B 9 "f" $ T $ TFun (replicate 4 $ T TNum) $ T TStr) ()
