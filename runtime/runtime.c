@@ -14,9 +14,7 @@ pNumber *newPyretNumber() {
 
 pNumber *loadPyretNumber(double *n) {
 	pNumber *ret = newPyretNumber();
-	printf("Loading number: %f\n", *n);
 	mpf_set_d(ret->num, *n);
-	gmp_printf("Loaded: %Ff\n", ret->num);
 	return ret;
 }
 
