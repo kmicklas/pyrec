@@ -24,7 +24,7 @@ ffiEnv =
 checkEmit :: P.Expr -> String
 checkEmit e = emit $ compile $ snd $ report $ tc ffiEnv e
 
-main = putStr $ checkEmit prog2
+main = putStr $ checkEmit prog4
 
 -- TESTING --
 e l = P.E l TUnknown
@@ -41,3 +41,6 @@ prog2 = e 1 $ eVar 2 "x" (e 3 $ Num 55)
 
 prog3 = e 1 $ App (e 2 $ Ident "f") $ map (\a -> e (round a) $ Num a) [1..4]
 env3  = M.singleton "f" $ Def Val (P.B 9 "f" $ T $ TFun (replicate 4 $ T TNum) $ T TStr) ()
+
+prog4 = e 1 $ eLet 2 "x" (e 3 $ Num 77)
+            $ e 4 $ App (e 5 $ Ident "@pyretTimes") [e 6 $ Ident "x", e 7 $ Num 33]
