@@ -24,7 +24,7 @@ data Statement
 data Val
   = Atomic Atom
   | Phi [Id]
-  | Call [Atom]
+  | Call Atom [Atom]
   | Alloca
   | Load Id
   deriving (Show, Eq)

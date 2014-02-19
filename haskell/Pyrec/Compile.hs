@@ -31,7 +31,7 @@ ssa env (R.E l _ e) = case e of
     Just A.Val -> (M.empty, [], bound id)
     Just A.Var -> (M.empty, [Bind valId $ Load $ bound id], valId)
       where valId = tempId l
-    Nothing    -> error "Internal error: bad id"
+    Nothing    -> (M.empty, [], bound id) -- For FFI
 
   A.Let (A.Def A.Val (R.B bl n _) v) subE ->
     combine (vm, vb ++ [Bind id $ Atomic $ Bound vid], id)
@@ -51,6 +51,14 @@ ssa env (R.E l _ e) = case e of
 
   A.Assign id v -> (vm, vb ++ [Assign (bound id) $ Bound vid], bound id)
     where (vm, vb, vid) = ssa env v
+
+  A.App f args -> foldr combine
+                        (fm, fb ++ [Bind valId $ Call (Bound fid) argsIds], valId)
+                        argsSSA
+    where (fm, fb, fid) = ssa env f
+          argsSSA       = map (ssa env) args
+          argsIds       = map (\ (_, _, id) -> Bound id) argsSSA
+          valId = tempId l
 
 combine :: Chunk -> Chunk -> Chunk
 combine (am, ab, _) (bm, bb, id) = (M.union am bm, ab ++ bb, id)
