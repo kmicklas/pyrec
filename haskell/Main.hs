@@ -31,7 +31,7 @@ e l = P.E l TUnknown
 
 eLet l n v i = Let (Def Val (P.B l n TUnknown) v) i
 eVar l n v i = Let (Def Var (P.B l n TUnknown) v) i
-eSeq     v i = Let (Def Val (P.B 0 "%temp" TUnknown) v) i
+eSeq     v i = Let (Def Val (P.B 0 "$temp" TUnknown) v) i
 
 prog1 = e 1 $ eLet 2 "x" (e 3 $ Num 55) $ e 2 $ Ident "x"
 
