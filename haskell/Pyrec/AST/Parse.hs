@@ -20,4 +20,6 @@ data TypeError
   = TypeMismatch {expected :: Type, got :: Type}
   deriving (Eq, Show)
 
-data Expr = E Loc Type (A.Expr Bind Id Expr Type)
+data Expr
+  = E Loc Type (A.Expr Bind Id Expr Type)
+  deriving (Eq, Show)

@@ -24,7 +24,8 @@ data Type id ty
   deriving (Eq, Show)
 
 data DefType
-  = Val | Var
+  = Val
+  | Var
   deriving (Eq, Show)
 
 data Decl bd id ex
