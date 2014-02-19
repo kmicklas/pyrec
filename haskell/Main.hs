@@ -12,10 +12,19 @@ import           Pyrec.Report
 import           Pyrec.Compile
 import           Pyrec.Emit
 
-checkEmit :: P.Expr -> String
-checkEmit e = emit $ compile $ snd $ report $ tc emptyEnv e
+ffiEnv =
+  M.fromList [
+    numBinOp 1000 "@pyretPlus",
+    numBinOp 1001 "@pyretMinus",
+    numBinOp 1002 "@pyretTimes",
+    numBinOp 1003 "@pyretDivide"
+  ]
+  where numBinOp l n = (n, Def Val (P.B l n $ T $ TFun [T TNum, T TNum] $ T TNum) ())
 
-main = putStr $ checkEmit prog1
+checkEmit :: P.Expr -> String
+checkEmit e = emit $ compile $ snd $ report $ tc ffiEnv e
+
+main = putStr $ checkEmit prog2
 
 -- TESTING --
 e l = P.E l TUnknown
