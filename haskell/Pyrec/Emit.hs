@@ -1,5 +1,6 @@
 module Pyrec.Emit where
 
+import           Data.List
 import qualified Data.Map as M
 import           Data.Map (Map)
 
@@ -49,6 +50,13 @@ emitStmt m (Bind id (Load lid)) =
 
 emitStmt m (Assign id (Bound bid)) =
   "\tstore %pyretVal " ++ bid ++ ", %pyretVal* " ++ id ++ "\n"
+
+emitStmt m (Bind id (Call f args)) =
+  "\t" ++ id ++ "$fn = bitcast %pyretVal " ++ id ++
+                " to %pyretVal(" ++ argType args ++ ")\n" ++
+  "\t" ++ id ++ " = call %pyretVal " ++ id ++ "$fn(" ++ argVals args ++ ")\n"
+  where argType as = concat $ intersperse "," $ map (\ _ -> "%pyretVal") as
+        argVals as = concat $ intersperse "," $ map (\ (Bound aid) -> "%pyretVal " ++ aid) as
 
 emitJump :: Jump -> String
 emitJump (Return (Bound id)) = "\tret %pyretVal " ++ id
