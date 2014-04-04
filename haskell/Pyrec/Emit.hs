@@ -59,11 +59,12 @@ emitStmt m (Bind id (Call (Bound fid) args)) =
   case fid of
     '@' : _ -> "\t" ++ id ++ " = call %pyretVal " ++ fid ++ "(" ++ argVals args ++ ")\n"
     _ ->
-      "\t" ++ id ++ "$fn = bitcast %pyretVal " ++ fid ++
-                    " to %pyretVal(" ++ argType args ++ ")*\n" ++
-      "\t" ++ id ++ " = call %pyretVal " ++ id ++ "$fn(" ++ argVals args ++ ")\n"
+      "\t" ++ id ++ "$clos = bitcast %pyretVal " ++ fid ++ "to " ++ funType ++ "*\n" ++
+      "\t" ++ id ++ "$fn = load " ++ funType ++ "*\n" ++
+      "\t" ++ id ++ " = call %pyretVal " ++ id ++ "$fn(" ++ argVals (args ++ [Bound fid]) ++ ")\n"
   where argType as = concat $ intersperse "," $ map (\ _ -> "%pyretVal") as
         argVals as = concat $ intersperse "," $ map (\ (Bound aid) -> "%pyretVal " ++ aid) as
+        funType = "%pyretVal(" ++ argType (args ++ [Bound fid]) ++ ")*"
 
 emitJump :: Jump -> String
 emitJump (Return (Bound id)) = "\tret %pyretVal " ++ id
