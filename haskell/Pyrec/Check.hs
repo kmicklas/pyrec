@@ -20,22 +20,22 @@ fixType env (P.E l et e) t = tc env $ P.E l (unify env et t) e
 
 tc :: Env -> P.Expr -> C.Expr
 tc env (P.E l t e) = case e of
-  
+
   Num n -> se (unify env t (P.T TNum)) $ Num n
   Str s -> se (unify env t (P.T TStr)) $ Str s
-  
+
   Ident i -> case M.lookup i env of
     Nothing -> se t $ Ident $ C.Unbound i
     Just (Def _ (P.B l _ t') _) -> e'
       where i' = C.Bound l i
             e' = se (unify env t t') $ Ident i'
-  
+
   Let (Def kind b@(P.B vl vi vt) v) e -> C.E l t' $ Let (newDef v') $ e'
     where v'@(C.E _ vt' _) = fixType env v vt
           newDef q         = Def kind (P.B vl vi vt') q
           env'             = M.insert vi (newDef ()) env
           e'@(C.E _ t'  _) = fixType env' e t
-  
+
   Assign i v -> case M.lookup i env of
     Nothing -> se t $ Ident $ C.Unbound i
     Just (Def dt (P.B l _ t') _) -> se t'' $ Assign i' v'
@@ -43,7 +43,7 @@ tc env (P.E l t e) = case e of
             i' = case dt of
               Val -> C.NotMutable l i
               Var -> C.Bound l i
-  
+
   App f args -> k $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
           args' = map (tc env) args
@@ -52,7 +52,7 @@ tc env (P.E l t e) = case e of
           k = se $ case ft' of
             P.T (TFun _ retT) -> retT
             _                 -> (P.TError $ P.TypeMismatch ft ft')
-  
+
   where se = C.E l
 
 
