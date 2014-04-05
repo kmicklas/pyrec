@@ -11,7 +11,9 @@ data Constant
   = Num Double
   | Str String
   | Fun [Id] [Block]
-  | Extern String Int -- number of arguments
+  | Eliminator [(Id, Maybe Int)] -- constructor name and number of arguments
+  | Constructor Id (Maybe Int) -- name and number of arguments
+  | Extern String Int -- name and number of arguments
   deriving (Show, Eq)
 
 data Block = Block [Statement] Jump deriving (Show, Eq)
