@@ -36,6 +36,31 @@ tc env (P.E l t e) = case e of
           env'             = M.insert vi (newDef ()) env
           e'@(C.E _ t'  _) = fixType env' e t
 
+  Let (Data i variants) e -> se t' $ Let data' e'
+    where envData         :: Entry -- phantom ex type parameter nessesitates rebuild
+          envData          = Data i variants
+
+          fixVar :: Variant P.Bind P.Id -> Variant P.Bind P.Id
+          fixVar (Variant vi args) = Variant vi $ fmap fmap fmap fixField args
+            where fixField :: P.Bind -> P.Bind
+                  fixField (B bl bi t) = B bl bi $ checkT (M.insert i envData env) t
+
+          variants'        = map fixVar variants
+
+          bindConstrs :: Variant P.Bind P.Id -> (P.Id , Entry)
+          bindConstrs (Variant vi ps) = (,) vi $ Def Val (B l vi $ T $ k $ TIdent vi) ()
+          {- not ideal l :: Loc -}
+            where k = case ps of
+                    Nothing     -> id
+                    Just params -> TFun (map (\(B _ _ t) -> t) params) . T
+
+          env'             = M.union (M.fromList $ (i, envData) : map bindConstrs variants') env
+          e'@(C.E _ t'  _) = fixType env' e t
+
+          variants''       = flip map variants' $ \(Variant vi args) -> Variant (C.Bound l vi) args
+          {- not ideal l :: Loc -}
+          data'            = Data (C.Bound l i) variants''
+
   Assign i v -> case M.lookup i env of
     Nothing -> se t $ Ident $ C.Unbound i
     Just (Def dt (P.B l _ t') _) -> se t'' $ Assign i' v'
@@ -44,12 +69,12 @@ tc env (P.E l t e) = case e of
               Val -> C.NotMutable l i
               Var -> C.Bound l i
 
-  App f args -> k $ App f' args'
+  App f args -> se t' $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
           args' = map (tc env) args
           getT (C.E _ t _) = t
           ft = P.T $ TFun (map getT args') t
-          k = se $ case ft' of
+          t' = case ft' of
             P.T (TFun _ retT) -> retT
             _                 -> (P.TError $ P.TypeMismatch ft ft')
 
