@@ -3,6 +3,8 @@ module Pyrec.Check where
 import qualified Data.Map as M
 import           Data.Map (Map)
 
+import           Pyrec.Misc
+
 import           Pyrec.AST
 import           Pyrec.AST.Parse as P
 import qualified Pyrec.AST.Check as C
@@ -57,7 +59,7 @@ tc env (P.E l t e) = case e of
           env'             = M.union (M.fromList $ (i, envData) : map bindConstrs variants') env
           e'@(C.E _ t'  _) = fixType env' e t
 
-          variants''       = flip map variants' $ \(Variant vi args) -> Variant (C.Bound l vi) args
+          variants''       = for variants' $ \(Variant vi args) -> Variant (C.Bound l vi) args
           {- not ideal l :: Loc -}
           data'            = Data (C.Bound l i) variants''
 
