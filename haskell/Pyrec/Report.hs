@@ -22,12 +22,12 @@ report (E l t e) = case e of
   Num n -> return $ oe $ Num n
   Str s -> return $ oe $ Str s
 
-  Fun bds e        -> fmap oe $ Fun bds  <$> report e
-  Let d e          -> fmap oe $ Let      <$> mapM report d         <*> report e
-  Graph ds e       -> fmap oe $ Graph    <$> mapM (mapM report) ds <*> report e
-  App f as         -> fmap oe $ App      <$> report f              <*> mapM report as
-  Try e1 bd e2     -> fmap oe $ Try      <$> report e1
-                      <*> return bd      <*> report e2
+  Fun bds e        -> fmap oe $ Fun bds <$> report e
+  Let d e          -> fmap oe $ Let     <$> mapM report d         <*> report e
+  Graph ds e       -> fmap oe $ Graph   <$> mapM (mapM report) ds <*> report e
+  App f as         -> fmap oe $ App     <$> report f              <*> mapM report as
+  Try e1 bd e2     -> fmap oe $ Try     <$> report e1
+                      <*> return bd <*> report e2
   Cases vt v cases -> fmap oe $ Cases vt
                       <$> report v <*> mapM (mapM report) cases
 
