@@ -1,6 +1,10 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 module Pyrec.AST where
 -- Base AST
+
+import Data.Foldable
+import Data.Traversable
+
 
 data Expr
      bt -- Binding with Type
@@ -18,7 +22,7 @@ data Expr
   | Assign id ex
   | Cases ty ex [Case bt bn ex]
   | Try ex bt ex
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Type id ty
   = TAny
@@ -26,7 +30,7 @@ data Type id ty
   | TStr
   | TIdent id
   | TFun [ty] ty
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data DefType
   = Val
@@ -36,11 +40,11 @@ data DefType
 data Decl bt bn ex
   = Def DefType bt ex
   | Data bn [Variant bt bn]
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Case bt bn ex
   = Case (Pattern bt bn) ex
-  deriving (Eq, Show, Functor)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Pattern bt bn
   = Constr bn (Maybe [Pattern bt bn])
