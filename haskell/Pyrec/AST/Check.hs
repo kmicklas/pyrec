@@ -1,8 +1,9 @@
 module Pyrec.AST.Check where
--- The AST after Checking
+-- The AST after checking
 
 import qualified Pyrec.AST as A
-import Pyrec.AST.Parse (Loc, Type, Bind,)
+import           Pyrec.AST.Parse   (Loc, BindT, BindN)
+import           Pyrec.AST.Desugar (Type)
 
 data Id
   = Bound Loc String
@@ -11,5 +12,5 @@ data Id
   deriving (Eq, Show)
 
 data Expr
-  = E Loc Type (A.Expr Bind Id Expr Type)
+  = E Loc Type (A.Expr BindT BindN Id Expr Type)
   deriving (Eq, Show)

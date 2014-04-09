@@ -17,17 +17,22 @@ data ModuleName
   = Named String
   | File String
 
-data Expr bd id ex ty
+data Expr
+     bt -- Binding with Type
+     bn -- Binding with No type
+     id -- Identifier
+     ex -- Expression
+     ty -- Type
   = Num Double
   | Str String
   | Ident id
-  | Fun [bd] ex
-  | Let   (Decl bd id ex) ex
-  | Graph [Decl bd id ex] ex
+  | Fun [bt] ex
+  | Let   (Decl bt bn ex) ex
+  | Graph [Decl bt bn ex] ex
   | App ex [ex]
   | Assign id ex
-  | Cases ty ex [Case bd id ex]
-  | Try ex bd ex
+  | Cases ty ex [Case bt bn ex]
+  | Try ex bt ex
   deriving (Eq, Show)
 
 data Type id ty
@@ -43,20 +48,20 @@ data DefType
   | Var
   deriving (Eq, Show)
 
-data Decl bd id ex
-  = Def DefType bd ex
-  | Data id [Variant bd id]
+data Decl bt bn ex
+  = Def DefType bt ex
+  | Data bn [Variant bt bn]
   deriving (Eq, Show)
 
-data Case bd id ex
-  = Case (Pattern bd id) ex
+data Case bt bn ex
+  = Case (Pattern bt bn) ex
   deriving (Eq, Show)
 
-data Pattern bd id
-  = Constr id (Maybe [Pattern bd id])
-  | Binding bd
+data Pattern bt bn
+  = Constr bn (Maybe [Pattern bt bn])
+  | Binding bt
   deriving (Eq, Show)
 
-data Variant bd id
-  = Variant id (Maybe [bd])
+data Variant bt bn
+  = Variant bn (Maybe [bt])
   deriving (Eq, Show)
