@@ -23,12 +23,13 @@ report (E l t e) = case e of
   Str s -> return $ oe $ Str s
 
   Fun bds e        -> fmap oe $ Fun bds  <$> report e
-  Let d e          -> fmap oe $ Let      <$> decl d       <*> report e
-  Graph ds e       -> fmap oe $ Graph    <$> mapM decl ds <*> report e
-  App f as         -> fmap oe $ App      <$> report f     <*> mapM report as
-  Try e1 bd e2     -> fmap oe $ Try      <$> report e1    <*> return bd      <*> report e2
-  Cases vt v cases -> fmap oe $ Cases vt <$> report v     <*> mapM fix cases
-    where fix (Case pats e) = Case pats <$> report e
+  Let d e          -> fmap oe $ Let      <$> mapM report d         <*> report e
+  Graph ds e       -> fmap oe $ Graph    <$> mapM (mapM report) ds <*> report e
+  App f as         -> fmap oe $ App      <$> report f              <*> mapM report as
+  Try e1 bd e2     -> fmap oe $ Try      <$> report e1
+                      <*> return bd      <*> report e2
+  Cases vt v cases -> fmap oe $ Cases vt
+                      <$> report v <*> mapM (mapM report) cases
 
   Ident (Bound   _ il is) -> return $ oe $ Ident $ R.Bound il is
   Ident (Unbound      is) -> err $ R.UnboundId is
@@ -38,7 +39,7 @@ report (E l t e) = case e of
     Bound Val il is -> err $ R.MutateVar il is
     Unbound      is -> err $ R.UnboundId is
 
---  _ -> R.E l t <$> mapM report e
+--  _ -> R.E l t <$> mapM report e -- so close....
 
   where oe e = R.E l t e
         
@@ -46,6 +47,3 @@ report (E l t e) = case e of
         err e = do let e' = (l , e)
                    tell [e']
                    return $ R.Error e'
-
-decl :: Decl BindT BindN C.Expr -> Writer Errors (Decl BindT BindN R.Expr)
-decl (Def k b o) = Def k b <$> report o
