@@ -11,6 +11,8 @@ import Pyrec.AST.Module
 
 type Parse = Parsec String Bool -- Bool is for after space or not
 
+-- Parser:
+
 parseString :: Parse a -> String -> Either ParseError a
 parseString p input = runParser p False "test" input
 
@@ -18,9 +20,22 @@ program :: Parse (Module Expr)
 program = endToken >> Module <$> provide <*> many import_ <*> block
 
 provide :: Parse (Provide Expr)
-provide = undefined
-import_ = undefined
+provide = option NoProvide $
+            do kw "provide"
+               (op "*" >> return ProvideAll) <|> (ProvideExpr <$> expr)
+
+import_ = do kw "import"
+             name <- Named <$> iden
+             option (Import name) $ kw "as" >> ImportQualified name <$> iden
+
 block = undefined
+
+expr = undefined
+
+none :: Parse ()
+none = return ()
+
+-- Lexer:
 
 iden :: Parse String
 iden = tok $ do word <- (:) <$> idenStart <*> many idenChar
@@ -80,6 +95,3 @@ parenNoSpace = parenSpace False
 
 paren :: Parse ()
 paren = char '(' >> putState False >> endToken
-
-none :: Parse ()
-none = return ()
