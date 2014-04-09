@@ -28,7 +28,7 @@ import_ = do kw "import"
              name <- Named <$> iden
              option (Import name) $ kw "as" >> ImportQualified name <$> iden
 
-block = undefined
+block = expr
 
 expr = undefined
 
@@ -38,12 +38,13 @@ none = return ()
 -- Lexer:
 
 iden :: Parse String
-iden = tok $ do word <- (:) <$> idenStart <*> many idenChar
-                            <* notFollowedBy idenChar
-                if elem word keywords then parserZero else return word
+iden = tok "identifier" $
+         do word <- (:) <$> idenStart <*> many idenChar
+                        <* notFollowedBy idenChar
+            if elem word keywords then parserZero else return word
 
 kw :: String -> Parse ()
-kw word = tok $ string word >> notFollowedBy idenChar
+kw word = tok word $ string word >> notFollowedBy idenChar
 
 keywords = [ "import", "provide", "as"
            , "var"
@@ -67,7 +68,7 @@ idenStart = letter
 idenChar :: Parse Char
 idenChar = alphaNum <|> char '-'
 
-op word = tok $ string word >> notFollowedBy operatorChar
+op word = tok word $ string word >> notFollowedBy operatorChar
 
 operators = [ "+", "-", "*", "/"
             , "<=", ">=", "==", "<>", "<", ">"
@@ -81,8 +82,8 @@ endToken = skipMany $ ((space >> none) <|>
                        (char '#' >> manyTill anyChar newline >> none))
                       >> putState True
 
-tok :: Parse a -> Parse a
-tok p = lookAhead p *> putState False *> p <* endToken
+tok :: String -> Parse a -> Parse a
+tok name p = lookAhead p *> putState False *> p <* endToken <?> name
 
 parenSpace :: Bool -> Parse ()
 parenSpace s = do afterSpace <- getState
