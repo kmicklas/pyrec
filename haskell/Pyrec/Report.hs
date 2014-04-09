@@ -1,8 +1,12 @@
 module Pyrec.Report where
 
+import Prelude hiding (map, mapM)
+
+import Data.Traversable
+
 import Control.Applicative
-import Control.Monad
-import Control.Monad.Writer
+import Control.Monad        hiding (mapM)
+import Control.Monad.Writer hiding (mapM)
 
 import           Pyrec.AST
 import           Pyrec.AST.Parse      (BindN)
@@ -34,7 +38,7 @@ report (E l t e) = case e of
     Bound Val il is -> err $ R.MutateVar il is
     Unbound      is -> err $ R.UnboundId is
 
---  _ -> R.E l t $ fmap report e
+--  _ -> R.E l t <$> mapM report e
 
   where oe e = R.E l t e
         
@@ -45,5 +49,3 @@ report (E l t e) = case e of
 
 decl :: Decl BindT BindN C.Expr -> Writer Errors (Decl BindT BindN R.Expr)
 decl (Def k b o) = Def k b <$> report o
-
-
