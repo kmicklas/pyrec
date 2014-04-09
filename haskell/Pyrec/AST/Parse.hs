@@ -18,6 +18,7 @@ data Type
 
 data TypeError
   = TypeMismatch {expected :: Type, got :: Type}
+  | CantCaseAnalyze               { got :: Type}
   deriving (Eq, Show)
 
 data Expr

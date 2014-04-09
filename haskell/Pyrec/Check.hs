@@ -1,5 +1,10 @@
 module Pyrec.Check where
 
+import           Control.Monad
+import           Control.Applicative
+
+import           Data.List (find, mapAccumL)
+
 import qualified Data.Map as M
 import           Data.Map (Map)
 
@@ -12,6 +17,9 @@ import qualified Pyrec.AST.Check as C
 type Entry = Decl P.Bind P.Id ()
 
 type Env = Map P.Id Entry
+
+type PatternP = Pattern P.Bind P.Id
+type PatternC = Pattern P.Bind C.Id
 
 emptyEnv :: Env
 emptyEnv = M.empty
@@ -79,6 +87,58 @@ tc env (P.E l t e) = case e of
           t' = case ft' of
             P.T (TFun _ retT) -> retT
             _                 -> (P.TError $ P.TypeMismatch ft ft')
+
+  Cases vt v cases -> se t'' $ Cases vt' v' cases'
+    where v'@(C.E _ vt' _) = fixType env v vt
+
+          bind :: P.Type -> PatternP -> (Bool , PatternC , Env)
+          bind t p = case p of
+
+            (Binding (B l i t')) -> ( True
+                                    , Binding $ B l i t''
+                                    , M.singleton i $ Def Val (B l i t'') ())
+              where t'' = unify env t t'
+
+            (Constr ci pats) -> result
+              where ensureIdent (T (TIdent i)) = Just i
+                    ensureIdent _              = Nothing
+
+                    -- outer maybe signifies error, inner maybe is use to distinguish
+                    -- pyret's "| Constructor()" vs "| Constructor"
+                    params :: Maybe (Maybe [P.Type])
+                    params = do (Variant vi params) <-
+                                  ensureIdent t
+                                  >>= (\i -> M.lookup i env)
+                                  >>= (\x -> case x of
+                                          Data _ vs -> Just vs
+                                          _         -> Nothing)
+
+                                  >>= find (\(Variant vi _) -> vi == ci)
+                                guard $ (length <$> params) == (length <$> pats)
+                                return $ flip (fmap fmap fmap) params $ \(B _ _ t) -> t
+
+                    results :: Maybe [(Bool, PatternC , Env)]
+                    (newerr, results) = case params of
+                      Nothing     -> (False , fmap fmap fmap (bind $ T $ TAny) pats )
+                      Just params -> (True  , zipWith bind <$> params <*> pats      )
+
+                    result = case results of
+                      Nothing   -> ( newerr
+                                   , Constr (C.Bound l ci) $ Nothing
+                                   , M.empty)
+                      Just list -> ( and $ newerr : errs
+                                   , Constr (C.Bound l ci) $ Just pats
+                                   , M.unions $ envs)
+                        where (errs, pats, envs) = unzip3 list
+
+          checkCase :: (Bool, P.Type) -> Case P.Bind P.Id P.Expr -> ((Bool , P.Type) , Case P.Bind C.Id C.Expr)
+          checkCase (err, t) (Case pat body) = ((err && err' , t') , Case pat' body')
+            where (err' , pat' , caseEnv) = bind vt' pat
+                  body'@(C.E _ t'  _)     = fixType caseEnv body t
+
+          ((err , t') , cases') = mapAccumL checkCase (True, t) cases
+
+          t'' = if err then TError $ P.CantCaseAnalyze t' else t'
 
   where se = C.E l
 
