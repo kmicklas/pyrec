@@ -20,6 +20,6 @@ data Type
   deriving (Eq, Show)
 
 data Expr
-  = E Loc Type (A.Expr BindT BindN Id Expr Type)
+  = E Loc Type (A.Expr BindT BindN Id Type Expr)
   | Sugar -- TEMP, you flesh it out Kenny
   deriving (Eq, Show)

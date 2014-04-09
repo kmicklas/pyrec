@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveFunctor #-}
 module Pyrec.AST where
 -- Base AST
 
@@ -5,8 +6,8 @@ data Expr
      bt -- Binding with Type
      bn -- Binding with No type
      id -- Identifier
-     ex -- Expression
      ty -- Type
+     ex -- Expression
   = Num Double
   | Str String
   | Ident id
@@ -17,7 +18,7 @@ data Expr
   | Assign id ex
   | Cases ty ex [Case bt bn ex]
   | Try ex bt ex
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor)
 
 data Type id ty
   = TAny
@@ -25,7 +26,7 @@ data Type id ty
   | TStr
   | TIdent id
   | TFun [ty] ty
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor)
 
 data DefType
   = Val
@@ -35,11 +36,11 @@ data DefType
 data Decl bt bn ex
   = Def DefType bt ex
   | Data bn [Variant bt bn]
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor)
 
 data Case bt bn ex
   = Case (Pattern bt bn) ex
-  deriving (Eq, Show)
+  deriving (Eq, Show, Functor)
 
 data Pattern bt bn
   = Constr bn (Maybe [Pattern bt bn])
