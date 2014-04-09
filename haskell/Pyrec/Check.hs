@@ -36,8 +36,8 @@ tc env (D.E l t e) = case e of
 
   Ident i -> case M.lookup i env of
     Nothing -> se t $ Ident $ C.Unbound i
-    Just (Def _ (BT l _ t') _) -> e'
-      where i' = C.Bound l i
+    Just (Def dt (BT l _ t') _) -> e'
+      where i' = C.Bound dt l i
             e' = se (unify env t t') $ Ident i'
 
   Let (Def kind b@(BT vl vi vt) v) e -> C.E l t' $ Let (newDef v') e'
@@ -59,7 +59,6 @@ tc env (D.E l t e) = case e of
 
           bindConstrs :: Variant D.BindT P.BindN -> (P.Id , Entry)
           bindConstrs (Variant (BN vl vi) ps) = (vi, Def Val (BT vl vi $ T $ k $ TIdent vi) ())
-          {- not ideal l :: Loc -}
             where k = case ps of
                     Nothing     -> id
                     Just params -> TFun (map (\(BT _ _ t) -> t) params) . T
@@ -71,11 +70,8 @@ tc env (D.E l t e) = case e of
 
   Assign i v -> case M.lookup i env of
     Nothing -> se t $ Ident $ C.Unbound i
-    Just (Def dt (BT l _ t') _) -> se t'' $ Assign i' v'
+    Just (Def dt (BT l _ t') _) -> se t'' $ Assign (C.Bound dt l i) v'
       where v'@(C.E _ t'' _) = fixType env v $ unify env t t'
-            i' = case dt of
-              Val -> C.NotMutable l i
-              Var -> C.Bound l i
 
   App f args -> se t' $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
@@ -117,8 +113,8 @@ tc env (D.E l t e) = case e of
 
                     results :: Maybe [(Bool, Pattern , Env)]
                     (newerr, results) = case params of
-                      Nothing     -> (False , fmap fmap fmap (bind $ T TAny) pats )
-                      Just params -> (True  , zipWith bind <$> params <*> pats      )
+                      Nothing     -> (False , fmap fmap fmap (bind $ T TAny) pats)
+                      Just params -> (True  , zipWith bind <$> params <*> pats)
 
                     result = case results of
                       Nothing   -> ( newerr

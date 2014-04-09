@@ -6,8 +6,7 @@ import           Pyrec.AST.Parse   (Loc, BindN)
 import           Pyrec.AST.Desugar (BindT, Type)
 
 data Id
-  = Bound Loc String
-  | NotMutable Loc String
+  = Bound A.DefType Loc String
   | Unbound String
   deriving (Eq, Show)
 

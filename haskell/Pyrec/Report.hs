@@ -1,58 +1,49 @@
 module Pyrec.Report where
 
+import Control.Applicative
+import Control.Monad
+import Control.Monad.Writer
+
 import           Pyrec.AST
-import           Pyrec.AST.Parse (Bind)
+import           Pyrec.AST.Parse      (BindN)
+import           Pyrec.AST.Desugar    (BindT)
 import           Pyrec.AST.Check as C
 import qualified Pyrec.AST.Core  as R
 
 type Errors = [R.ErrorMessage]
 
-report :: C.Expr -> (Errors, R.Expr)
+report :: C.Expr -> Writer Errors R.Expr
 report (E l t e) = case e of
 
-  Num n -> good $ Num n
-  Str s -> good $ Str s
+  Num n -> return $ oe $ Num n
+  Str s -> return $ oe $ Str s
 
-  Fun bds e -> bad rs $ Fun bds e'
-    where (rs, e') = report e
+  Fun bds e        -> fmap oe $ Fun bds  <$> report e
+  Let d e          -> fmap oe $ Let      <$> decl d       <*> report e
+  Graph ds e       -> fmap oe $ Graph    <$> mapM decl ds <*> report e
+  App f as         -> fmap oe $ App      <$> report f     <*> mapM report as
+  Try e1 bd e2     -> fmap oe $ Try      <$> report e1    <*> return bd      <*> report e2
+  Cases vt v cases -> fmap oe $ Cases vt <$> report v     <*> mapM fix cases
+    where fix (Case pats e) = Case pats <$> report e
 
-  Let d e -> bad (rs1 ++ rs2) $ Let d' e'
-    where (rs1, d') = decl d
-          (rs2, e') = report e
-
-  Graph ds e -> bad (concat rs1 ++ rs2) $ Graph ds' e'
-    where (rs1, ds') = unzip $ map decl ds
-          (rs2, e')  = report e
-
-  App f as -> bad (rs1 ++ concat rs2) $ App f' as'
-    where (rs1, f')  = report f
-          (rs2, as') = unzip $ map report as
-
-  Try e1 bd e2 -> bad (rs1 ++ rs2) $ Try e1' bd e2'
-    where (rs1, e1') = report e1
-          (rs2, e2') = report e2
-
-  Ident i -> case i of
-    Bound      il is -> stuff il is
-    NotMutable il is -> stuff il is
-    Unbound       is -> helper $ R.UnboundId is
-    where helper err = ([err'], R.Error err')
-            where err' = (l, err)
-          stuff a b = good $ Ident $ R.Bound a b
+  Ident (Bound   _ il is) -> return $ oe $ Ident $ R.Bound il is
+  Ident (Unbound      is) -> err $ R.UnboundId is
 
   Assign i v -> case i of
-    Bound il is -> (,) rs $ oe $ Assign (R.Bound il is) v'
-    NotMutable il is -> helper $ R.MutateVar il is
-    Unbound       is -> helper $ R.UnboundId is
-    where (rs, v') = report v
-          helper err = (err' : rs, R.Error err')
-            where err' = (l, err)
+    Bound Var il is -> (oe . Assign (R.Bound il is)) <$> report v
+    Bound Val il is -> err $ R.MutateVar il is
+    Unbound      is -> err $ R.UnboundId is
+
+--  _ -> R.E l t $ fmap report e
 
   where oe e = R.E l t e
-        bad rs e = (rs, oe e)
-        good e = bad [] e
+        
+        err :: R.Error -> Writer Errors R.Expr
+        err e = do let e' = (l , e)
+                   tell [e']
+                   return $ R.Error e'
+
+decl :: Decl BindT BindN C.Expr -> Writer Errors (Decl BindT BindN R.Expr)
+decl (Def k b o) = Def k b <$> report o
 
 
-decl :: Decl Bind C.Id C.Expr -> (Errors, Decl Bind R.Id R.Expr)
-decl (Def k b o) = (rs, Def k b o')
-  where (rs, o') = report o
