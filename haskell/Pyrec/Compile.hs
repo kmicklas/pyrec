@@ -1,11 +1,14 @@
 module Pyrec.Compile where
 
-import qualified Data.Map as M
-import           Data.Map (Map)
+import qualified Data.Map          as M
+import           Data.Map               (Map)
 
-import qualified Pyrec.AST as A
-import qualified Pyrec.AST.Core as R
-import qualified Pyrec.AST.Parse as R (Bind(B), Loc)
+import           Pyrec.Misc
+
+import qualified Pyrec.AST         as A
+import qualified Pyrec.AST.Core    as R
+import qualified Pyrec.AST.Parse   as R (BindN(BN), Loc)
+import qualified Pyrec.AST.Desugar as D (BindT(BT))
 import           Pyrec.SSA
 
 type Env = Map Id (A.Decl () Id ())
@@ -20,8 +23,8 @@ constId l = "@const$" ++ show l
 bound :: R.Id -> Id
 bound (R.Bound l n) = "%" ++ n ++ "$" ++ show l
 
-caseId :: R.Id -> Id
-caseId (R.Bound l n) = "@case$" ++ n ++ "$" ++ show l
+caseBN :: R.BindN -> Id
+caseBN (R.BN l n) = "@case$" ++ n ++ "$" ++ show l
 
 ssa :: Env -> R.Expr -> Chunk
 ssa env (R.E l _ e) = case e of
@@ -38,7 +41,7 @@ ssa env (R.E l _ e) = case e of
     Nothing    -> (M.empty, [], ffi id) -- For FFI
       where ffi (R.Bound _ n) = n
 
-  A.Let (A.Def A.Val (R.B bl n _) v) subE ->
+  A.Let (A.Def A.Val (D.BT bl n _) v) subE ->
     combine (vm, vb ++ [Bind id $ Atomic $ Bound vid], id)
             (sm, sb, sid)
     where (vm, vb, vid) = ssa env v
@@ -47,7 +50,7 @@ ssa env (R.E l _ e) = case e of
           bind = R.Bound bl n
           id = bound bind
 
-  A.Let (A.Def A.Var (R.B bl n _) v) subE ->
+  A.Let (A.Def A.Var (D.BT bl n _) v) subE ->
     combine (vm, vb ++ [Bind id Alloca, Assign id $ Bound vid], id)
             (sm, sb, sid)
     where (vm, vb, vid) = ssa env v
@@ -64,15 +67,14 @@ ssa env (R.E l _ e) = case e of
                         argsSSA
     where (fm, fb, fid) = ssa env f
           argsSSA       = map (ssa env) args
-          argsIds       = map (\ (_, _, id) -> Bound id) argsSSA
-          valId = tempId l
+          argsIds       = for argsSSA $ \ (_, _, id) -> Bound id
+          valId         = tempId l
 
   A.Let (A.Data id variants) subE -> (M.insert elim (Eliminator cases) sm, sb, sid)
     where (sm, sb, sid) = ssa undefined subE
           elim          = constId l
-          cases         = map (\ (A.Variant vid binds) ->
-                                (caseId vid, fmap length binds))
-                              variants
+          cases         = for variants $ \ (A.Variant vid binds) ->
+            (caseBN vid, fmap length binds)
 
 combine :: Chunk -> Chunk -> Chunk
 combine (am, ab, _) (bm, bb, id) = (M.union am bm, ab ++ bb, id)
