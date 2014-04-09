@@ -11,11 +11,12 @@ data BindT
   deriving (Eq, Show)
 
 data BindN
-  = BN Loc String Type
+  = BN Loc String
   deriving (Eq, Show)
 
 data Type
   = T (A.Type Id Type)
+  | TSugar
   deriving (Eq, Show)
 
 data Expr

@@ -2,7 +2,11 @@ module Pyrec.AST.Desugar where
 -- The AST after desugaring
 
 import qualified Pyrec.AST as A
-import           Pyrec.AST.Parse (Loc, Id, BindT, BindN)
+import           Pyrec.AST.Parse (Loc, Id, BindN)
+
+data BindT
+  = BT Loc String Type
+  deriving (Eq, Show)
 
 data Type
   = T (A.Type Id Type)
