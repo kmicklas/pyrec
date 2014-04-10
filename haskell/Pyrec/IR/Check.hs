@@ -2,8 +2,7 @@ module Pyrec.IR.Check where
 -- The IR after checking
 
 import qualified Pyrec.IR as IR
-import           Pyrec.IR.Parse   (Loc, BindN)
-import           Pyrec.IR.Desugar (BindT, Type)
+import           Pyrec.IR.Desugar (Loc, BindN, BindT, Type)
 
 data Id
   = Bound IR.DefType Loc String

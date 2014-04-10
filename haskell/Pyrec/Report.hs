@@ -9,8 +9,7 @@ import Control.Monad        hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
 
 import           Pyrec.IR
-import           Pyrec.IR.Parse      (BindN)
-import           Pyrec.IR.Desugar    (BindT)
+import           Pyrec.IR.Desugar    (BindN, BindT)
 import           Pyrec.IR.Check as C
 import qualified Pyrec.IR.Core  as R
 

@@ -2,8 +2,7 @@ module Pyrec.IR.Core where
 -- The IR after inserting runtime errors
 
 import qualified Pyrec.IR as IR
-import           Pyrec.IR.Parse   (Loc, BindN)
-import           Pyrec.IR.Desugar (BindT, Type, TypeError)
+import           Pyrec.IR.Desugar (Loc, BindN, BindT, Type, TypeError)
 data Id
   = Bound Loc String
   deriving (Eq, Show)

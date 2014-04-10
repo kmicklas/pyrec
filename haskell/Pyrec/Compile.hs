@@ -7,24 +7,23 @@ import           Pyrec.Misc
 
 import qualified Pyrec.IR         as IR
 import qualified Pyrec.IR.Core    as R
-import qualified Pyrec.IR.Parse   as R (BindN(BN), Loc)
-import qualified Pyrec.IR.Desugar as D (BindT(BT))
+import           Pyrec.IR.Desugar       (Loc, BindT(BT), BindN(BN))
 import           Pyrec.SSA
 
-type Env = Map Id (IR.Decl () Id ())
+type Env   = Map Id (IR.Decl () Id ())
 type Chunk = (Module, [Statement], Id)
 
-tempId :: R.Loc -> Id
+tempId :: Loc -> Id
 tempId l = "%temp$" ++ show l
 
-constId :: R.Loc -> Id
+constId :: Loc -> Id
 constId l = "@const$" ++ show l
 
 bound :: R.Id -> Id
 bound (R.Bound l n) = "%" ++ n ++ "$" ++ show l
 
-caseBN :: R.BindN -> Id
-caseBN (R.BN l n) = "@case$" ++ n ++ "$" ++ show l
+caseBN :: BindN -> Id
+caseBN (BN l n) = "@case$" ++ n ++ "$" ++ show l
 
 ssa :: Env -> R.Expr -> Chunk
 ssa env (R.E l _ e) = case e of
@@ -41,7 +40,7 @@ ssa env (R.E l _ e) = case e of
     Nothing    -> (M.empty, [], ffi id) -- For FFI
       where ffi (R.Bound _ n) = n
 
-  IR.Let (IR.Def IR.Val (D.BT bl n _) v) subE ->
+  IR.Let (IR.Def IR.Val (BT bl n _) v) subE ->
     combine (vm, vb ++ [Bind id $ Atomic $ Bound vid], id)
             (sm, sb, sid)
     where (vm, vb, vid) = ssa env v
@@ -50,7 +49,7 @@ ssa env (R.E l _ e) = case e of
           bind = R.Bound bl n
           id = bound bind
 
-  IR.Let (IR.Def IR.Var (D.BT bl n _) v) subE ->
+  IR.Let (IR.Def IR.Var (BT bl n _) v) subE ->
     combine (vm, vb ++ [Bind id Alloca, Assign id $ Bound vid], id)
             (sm, sb, sid)
     where (vm, vb, vid) = ssa env v

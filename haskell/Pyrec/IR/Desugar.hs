@@ -1,11 +1,19 @@
 module Pyrec.IR.Desugar where
 -- The IR after desugaring
 
+import Text.Parsec.Pos
+
 import qualified Pyrec.IR as IR
-import           Pyrec.IR.Parse (Loc, Id, BindN)
+
+type Id  = String
+type Loc = SourcePos
 
 data BindT
   = BT Loc String Type
+  deriving (Eq, Show)
+
+data BindN
+  = BN Loc String
   deriving (Eq, Show)
 
 data Type

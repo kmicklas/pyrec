@@ -5,22 +5,21 @@ import           Control.Applicative
 
 import           Data.List (find, mapAccumL)
 
-import qualified Data.Map as M
-import           Data.Map (Map)
+import qualified Data.Map          as M
+import           Data.Map                       (Map)
 
 import           Pyrec.Misc
 
-import qualified Pyrec.IR          as IR       (Pattern)
-import           Pyrec.IR               hiding (Pattern)
-import           Pyrec.IR.Parse    as P hiding (Type(T), BindT(BT))
+import qualified Pyrec.IR          as IR        (Pattern)
+import           Pyrec.IR                hiding (Pattern)
 import           Pyrec.IR.Desugar  as D
 import qualified Pyrec.IR.Check    as C
 
-type Entry = Decl D.BindT P.BindN ()
+type Entry = Decl D.BindT BindN ()
 
-type Env = Map P.Id Entry
+type Env = Map Id Entry
 
-type Pattern = IR.Pattern D.BindT P.BindN
+type Pattern = IR.Pattern D.BindT BindN
 
 emptyEnv :: Env
 emptyEnv = M.empty
@@ -50,14 +49,14 @@ tc env (D.E l t e) = case e of
     where envData         :: Entry -- phantom ex type parameter nessesitates rebuild
           envData          = Data i variants
 
-          fixVar :: Variant D.BindT P.BindN -> Variant D.BindT P.BindN
+          fixVar :: Variant D.BindT BindN -> Variant D.BindT BindN
           fixVar (Variant vi args) = Variant vi $ fmap fmap fmap fixField args
             where fixField :: D.BindT -> D.BindT
                   fixField (BT bl bi t) = BT bl bi $ checkT (M.insert bi envData env) t
 
           variants'        = map fixVar variants
 
-          bindConstrs :: Variant D.BindT P.BindN -> (P.Id , Entry)
+          bindConstrs :: Variant D.BindT BindN -> (Id , Entry)
           bindConstrs (Variant (BN vl vi) ps) = (vi, Def Val (BT vl vi $ T $ k $ TIdent vi) ())
             where k = case ps of
                     Nothing     -> id
@@ -125,8 +124,8 @@ tc env (D.E l t e) = case e of
                                    , M.unions envs)
                         where (errs, pats, envs) = unzip3 list
 
-          checkCase :: (Bool, D.Type)  -> Case D.BindT P.BindN D.Expr ->
-                       ((Bool , D.Type) , Case D.BindT P.BindN C.Expr)
+          checkCase :: (Bool, D.Type)  -> Case D.BindT BindN D.Expr ->
+                       ((Bool , D.Type) , Case D.BindT BindN C.Expr)
           checkCase (err, t) (Case pat body) = ((err && err' , t') , Case pat' body')
             where (err' , pat' , caseEnv) = bind vt' pat
                   body'@(C.E _ t'  _)     = fixType caseEnv body t
