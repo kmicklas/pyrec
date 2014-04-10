@@ -1,7 +1,7 @@
-module Pyrec.AST.Parse where
--- The AST after parsing
+module Pyrec.IR.Parse where
+-- The IR after parsing
 
-import qualified Pyrec.AST as A
+import qualified Pyrec.IR as IR
 
 type Loc = Int
 type Id = String
@@ -15,11 +15,11 @@ data BindN
   deriving (Eq, Show)
 
 data Type
-  = T (A.Type Id Type)
+  = T (IR.Type Id Type)
   | TSugar
   deriving (Eq, Show)
 
 data Expr
-  = E Loc Type (A.Expr BindT BindN Id Type Expr)
+  = E Loc Type (IR.Expr BindT BindN Id Type Expr)
   | Sugar -- TEMP, you flesh it out Kenny
   deriving (Eq, Show)

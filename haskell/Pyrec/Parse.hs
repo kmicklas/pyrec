@@ -5,9 +5,7 @@ import Control.Applicative hiding (many, (<|>))
 import Text.Parsec
 import Text.Parsec.String
 
-import qualified Pyrec.AST as A
-import Pyrec.AST.Parse
-import Pyrec.AST.Module
+import Pyrec.AST as A
 
 type Parse = Parsec String Bool -- Bool is for after space or not
 
@@ -16,17 +14,19 @@ type Parse = Parsec String Bool -- Bool is for after space or not
 parseString :: Parse a -> String -> Either ParseError a
 parseString p input = runParser p False "test" input
 
-program :: Parse (Module Expr)
+program :: Parse Module
 program = endToken >> Module <$> provide <*> many import_ <*> block
 
-provide :: Parse (Provide Expr)
-provide = option NoProvide $
+provide :: Parse (Node Provide)
+provide = node $ option NoProvide $
             do kw "provide"
                (op "*" >> return ProvideAll) <|> (ProvideExpr <$> expr)
 
-import_ = do kw "import"
-             name <- Named <$> iden
-             option (Import name) $ kw "as" >> ImportQualified name <$> iden
+import_ :: Parse (Node Import)
+import_ = node $ do kw "import"
+                    name <- Named <$> iden
+                    option (Import name) $
+                      kw "as" >> ImportQualified name <$> iden
 
 block = expr
 
@@ -36,6 +36,9 @@ none :: Parse ()
 none = return ()
 
 -- Lexer:
+
+node :: Parse a -> Parse (Node a)
+node p = Node <$> getPosition <*> p
 
 iden :: Parse String
 iden = tok "identifier" $

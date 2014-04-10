@@ -3,12 +3,12 @@ module Pyrec.Compile where
 import qualified Data.Map as M
 import           Data.Map (Map)
 
-import qualified Pyrec.AST as A
-import qualified Pyrec.AST.Core as R
-import qualified Pyrec.AST.Parse as R (Bind(B), Loc)
+import qualified Pyrec.IR as IR
+import qualified Pyrec.IR.Core as R
+import qualified Pyrec.IR.Parse as R (Bind(B), Loc)
 import           Pyrec.SSA
 
-type Env = Map Id (A.Decl () Id ())
+type Env = Map Id (IR.Decl () Id ())
 type Chunk = (Module, [Statement], Id)
 
 tempId :: R.Loc -> Id
@@ -26,40 +26,40 @@ caseId (R.Bound l n) = "@case$" ++ n ++ "$" ++ show l
 ssa :: Env -> R.Expr -> Chunk
 ssa env (R.E l _ e) = case e of
 
-  A.Num n -> (M.singleton cid (Num n), [Bind id $ Atomic $ Const cid], id)
+  IR.Num n -> (M.singleton cid (Num n), [Bind id $ Atomic $ Const cid], id)
     where cid = constId l
           id  = tempId  l
 
-  A.Ident id -> case M.lookup (bound id) env of
-    Just (A.Def A.Val () ()) -> (M.empty, [], bound id)
-    Just (A.Def A.Var () ()) -> (M.empty, [Bind valId $ Load $ bound id], valId)
+  IR.Ident id -> case M.lookup (bound id) env of
+    Just (IR.Def IR.Val () ()) -> (M.empty, [], bound id)
+    Just (IR.Def IR.Var () ()) -> (M.empty, [Bind valId $ Load $ bound id], valId)
       where valId = tempId l
-    Just (A.Data _ _) -> error "Can't use type as value"
+    Just (IR.Data _ _) -> error "Can't use type as value"
     Nothing    -> (M.empty, [], ffi id) -- For FFI
       where ffi (R.Bound _ n) = n
 
-  A.Let (A.Def A.Val (R.B bl n _) v) subE ->
+  IR.Let (IR.Def IR.Val (R.B bl n _) v) subE ->
     combine (vm, vb ++ [Bind id $ Atomic $ Bound vid], id)
             (sm, sb, sid)
     where (vm, vb, vid) = ssa env v
-          (sm, sb, sid) = ssa (M.insert (bound bind) (A.Def A.Val () ()) env)
+          (sm, sb, sid) = ssa (M.insert (bound bind) (IR.Def IR.Val () ()) env)
                               subE
           bind = R.Bound bl n
           id = bound bind
 
-  A.Let (A.Def A.Var (R.B bl n _) v) subE ->
+  IR.Let (IR.Def IR.Var (R.B bl n _) v) subE ->
     combine (vm, vb ++ [Bind id Alloca, Assign id $ Bound vid], id)
             (sm, sb, sid)
     where (vm, vb, vid) = ssa env v
-          (sm, sb, sid) = ssa (M.insert (bound bind) (A.Def A.Var () ()) env)
+          (sm, sb, sid) = ssa (M.insert (bound bind) (IR.Def IR.Var () ()) env)
                           subE
           bind = R.Bound bl n
           id = bound bind
 
-  A.Assign id v -> (vm, vb ++ [Assign (bound id) $ Bound vid], vid)
+  IR.Assign id v -> (vm, vb ++ [Assign (bound id) $ Bound vid], vid)
     where (vm, vb, vid) = ssa env v
 
-  A.App f args -> foldr combine
+  IR.App f args -> foldr combine
                         (fm, fb ++ [Bind valId $ Call (Bound fid) argsIds], valId)
                         argsSSA
     where (fm, fb, fid) = ssa env f
@@ -67,10 +67,10 @@ ssa env (R.E l _ e) = case e of
           argsIds       = map (\ (_, _, id) -> Bound id) argsSSA
           valId = tempId l
 
-  A.Let (A.Data id variants) subE -> (M.insert elim (Eliminator cases) sm, sb, sid)
+  IR.Let (IR.Data id variants) subE -> (M.insert elim (Eliminator cases) sm, sb, sid)
     where (sm, sb, sid) = ssa undefined subE
           elim          = constId l
-          cases         = map (\ (A.Variant vid binds) ->
+          cases         = map (\ (IR.Variant vid binds) ->
                                 (caseId vid, fmap length binds))
                               variants
 
