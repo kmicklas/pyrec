@@ -30,7 +30,8 @@ import_ = node $ do kw "import"
 
 block = expr
 
-expr = undefined
+expr :: Parse (Node Expr)
+expr = node $ Num <$> number
 
 none :: Parse ()
 none = return ()
@@ -39,6 +40,9 @@ none = return ()
 
 node :: Parse a -> Parse (Node a)
 node p = Node <$> getPosition <*> p
+
+number :: Parse Double
+number = read <$> many digit
 
 iden :: Parse String
 iden = tok "identifier" $
