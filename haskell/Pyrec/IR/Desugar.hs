@@ -1,15 +1,15 @@
-module Pyrec.AST.Desugar where
--- The AST after desugaring
+module Pyrec.IR.Desugar where
+-- The IR after desugaring
 
-import qualified Pyrec.AST as A
-import           Pyrec.AST.Parse (Loc, Id, BindN)
+import qualified Pyrec.IR as IR
+import           Pyrec.IR.Parse (Loc, Id, BindN)
 
 data BindT
   = BT Loc String Type
   deriving (Eq, Show)
 
 data Type
-  = T (A.Type Id Type)
+  = T (IR.Type Id Type)
   | TUnknown
   | TError TypeError
   deriving (Eq, Show)
@@ -22,5 +22,5 @@ data TypeError
   deriving (Eq, Show)
 
 data Expr
-  = E Loc Type (A.Expr BindT BindN Id Type Expr)
+  = E Loc Type (IR.Expr BindT BindN Id Type Expr)
   deriving (Eq, Show)

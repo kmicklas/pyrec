@@ -3,10 +3,10 @@ module Main where
 import qualified Data.Map          as M
 import           Data.Map               (Map)
 
-import           Pyrec.AST
+import           Pyrec.IR
 --import           Pyrec.AST.Parse   as P hiding (Type(T))
-import           Pyrec.AST.Desugar as D
-import qualified Pyrec.AST.Check   as C
+import           Pyrec.IR.Desugar as D
+import qualified Pyrec.IR.Check   as C
 
 import           Pyrec.Check
 import           Pyrec.Report

@@ -8,11 +8,11 @@ import Control.Applicative
 import Control.Monad        hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
 
-import           Pyrec.AST
-import           Pyrec.AST.Parse      (BindN)
-import           Pyrec.AST.Desugar    (BindT)
-import           Pyrec.AST.Check as C
-import qualified Pyrec.AST.Core  as R
+import           Pyrec.IR
+import           Pyrec.IR.Parse      (BindN)
+import           Pyrec.IR.Desugar    (BindT)
+import           Pyrec.IR.Check as C
+import qualified Pyrec.IR.Core  as R
 
 type Errors = [R.ErrorMessage]
 

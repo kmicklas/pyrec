@@ -10,17 +10,17 @@ import           Data.Map (Map)
 
 import           Pyrec.Misc
 
-import qualified Pyrec.AST         as A        (Pattern)
-import           Pyrec.AST              hiding (Pattern)
-import           Pyrec.AST.Parse   as P hiding (Type(T), BindT(BT))
-import           Pyrec.AST.Desugar as D
-import qualified Pyrec.AST.Check   as C
+import qualified Pyrec.IR          as IR       (Pattern)
+import           Pyrec.IR               hiding (Pattern)
+import           Pyrec.IR.Parse    as P hiding (Type(T), BindT(BT))
+import           Pyrec.IR.Desugar  as D
+import qualified Pyrec.IR.Check    as C
 
 type Entry = Decl D.BindT P.BindN ()
 
 type Env = Map P.Id Entry
 
-type Pattern = A.Pattern D.BindT P.BindN
+type Pattern = IR.Pattern D.BindT P.BindN
 
 emptyEnv :: Env
 emptyEnv = M.empty
