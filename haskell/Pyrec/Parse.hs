@@ -28,7 +28,18 @@ import_ = node $ do kw "import"
                     option (Import name) $
                       kw "as" >> ImportQualified name <$> iden
 
-block = expr
+block :: Parse Block
+block = many stmt
+
+stmt :: Parse (Node Statement)
+stmt = node $ try (fmap LetStmt $ Let <$> (bind <* op "=") <*> expr) <|>
+              (ExprStmt <$> expr)
+
+bind :: Parse Bind
+bind = Bind <$> iden <*> optionMaybe type_
+
+type_ :: Parse (Node Type)
+type_ = node $ TId <$> iden
 
 expr :: Parse (Node Expr)
 expr = node $ Num <$> number
@@ -42,10 +53,10 @@ node :: Parse a -> Parse (Node a)
 node p = Node <$> getPosition <*> p
 
 number :: Parse Double
-number = read <$> many digit
+number = read <$> many1 digit
 
-iden :: Parse String
-iden = tok "identifier" $
+iden :: Parse Id
+iden = tok "identifier" $ node $
          do word <- (:) <$> idenStart <*> many idenChar
                         <* notFollowedBy idenChar
             if elem word keywords then parserZero else return word
