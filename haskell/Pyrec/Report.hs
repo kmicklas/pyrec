@@ -14,11 +14,12 @@ import           Pyrec.IR.Check as C
 import qualified Pyrec.IR.Core  as R
 
 type Errors = [R.ErrorMessage]
+type R = Writer Errors
 
 report :: C.Expr -> (R.Expr, Errors)
 report = runWriter . rpt
 
-rpt :: C.Expr -> Writer Errors R.Expr
+rpt :: C.Expr -> R R.Expr
 rpt (E l t e) = case e of
 
   Num n -> return $ oe $ Num n
@@ -45,7 +46,7 @@ rpt (E l t e) = case e of
 
   where oe e = R.E l t e
         
-        err :: R.Error -> Writer Errors R.Expr
+        err :: R.Error -> R R.Expr
         err e = do let e' = (l , e)
                    tell [e']
                    return $ R.Error e'
