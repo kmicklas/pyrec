@@ -8,12 +8,14 @@ import Control.Applicative
 import Control.Monad        hiding (mapM)
 import Control.Monad.Writer hiding (mapM)
 
+import           Pyrec.Error
+
 import           Pyrec.IR
 import           Pyrec.IR.Desugar    (BindN, BindT)
 import           Pyrec.IR.Check as C
 import qualified Pyrec.IR.Core  as R
 
-type Errors = [R.ErrorMessage]
+type Errors = [ErrorMessage]
 type R = Writer Errors
 
 report :: C.Expr -> (R.Expr, Errors)
@@ -35,18 +37,18 @@ rpt (E l t e) = case e of
                       <$> rpt v <*> mapM (mapM rpt) cases
 
   Ident (Bound   _ il is) -> return $ oe $ Ident $ R.Bound il is
-  Ident (Unbound      is) -> err $ R.UnboundId is
+  Ident (Unbound      is) -> err $ UnboundId is
 
   Assign i v -> case i of
     Bound Var il is -> (oe . Assign (R.Bound il is)) <$> rpt v
-    Bound Val il is -> err $ R.MutateVar il is
-    Unbound      is -> err $ R.UnboundId is
+    Bound Val il is -> err $ MutateVar il is
+    Unbound      is -> err $ UnboundId is
 
 --  _ -> R.E l t <$> mapM rpt e -- so close....
 
   where oe e = R.E l t e
         
-        err :: R.Error -> R R.Expr
+        err :: Error -> R R.Expr
         err e = do let e' = (l , e)
                    tell [e']
                    return $ R.Error e'

@@ -3,6 +3,8 @@ module Pyrec.IR.Core where
 
 import qualified Pyrec.IR as IR
 import           Pyrec.IR.Desugar (Loc, BindN, BindT, Type, TypeError)
+import           Pyrec.Error
+
 data Id
   = Bound Loc String
   deriving (Eq, Show)
@@ -11,11 +13,3 @@ data Expr
   = E Loc Type (IR.Expr BindT BindN Id Type Expr)
   | Error ErrorMessage
   deriving (Eq, Show)
-
-data Error
-  = UnboundId String
-  | MutateVar Loc String
-  | TypeError TypeError
-  deriving (Eq, Show)
-
-type ErrorMessage = (Loc, Error)
