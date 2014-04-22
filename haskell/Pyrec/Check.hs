@@ -1,10 +1,10 @@
 module Pyrec.Check where
 
-import           Prelude                 hiding (map, mapM)
+import           Prelude                 hiding (map, mapM, sequence)
 
 import           Control.Applicative
-import           Control.Monad           hiding (mapM)
-import           Control.Monad.Reader    hiding (mapM)
+import           Control.Monad           hiding (mapM, sequence)
+import           Control.Monad.Reader    hiding (mapM, sequence)
 
 import           Data.List                      (find)
 import qualified Data.Map          as M
@@ -27,11 +27,11 @@ type CK      = Reader Env
 emptyEnv :: Env
 emptyEnv = M.empty
 
-fixType :: Env -> D.Expr -> D.Type -> C.Expr
-fixType env (D.E l et e) t = tc env $ D.E l (unify env et t) e
+fixType :: D.Expr -> D.Type -> CK C.Expr
+fixType (D.E l et e) t = tc =<< (\t' -> D.E l t' e) <$> unify et t
 
-tc :: Env -> D.Expr -> C.Expr
-tc env (D.E l t e) = case e of
+tc :: D.Expr -> CK C.Expr
+tc (D.E l t e) = case e of
 
   Num n -> se (unify env t $ D.T TNum) $ Num n
   Str s -> se (unify env t $ D.T TStr) $ Str s
@@ -148,24 +148,25 @@ tc env (D.E l t e) = case e of
   where se = C.E l
 
 
-checkT :: Env -> D.Type -> D.Type
-checkT env t = case t of
-  TUnknown            -> TUnknown
-  D.T TNum            -> t
-  D.T TStr            -> t
-  D.T (TFun args res) -> D.T $ TFun (checkT env <$> args) res
+checkT :: D.Type -> CK D.Type
+checkT t = case t of
+  TUnknown            -> return TUnknown
+  D.T TNum            -> return t
+  D.T TStr            -> return t
+  D.T (TFun args res) -> for (mapM checkT args) $ \lst -> D.T $ TFun lst res
 
 -- expected then got
-unify :: Env -> D.Type -> D.Type -> D.Type
-unify env a b = case (a, b) of
-  (D.T TNum,   D.T TNum)   -> D.T TNum
-  (D.T TStr,   D.T TStr)   -> D.T TStr
+unify :: D.Type -> D.Type -> CK D.Type
+unify a b = case (a, b) of
+  (D.T TNum,   D.T TNum)   -> return $ D.T TNum
+  (D.T TStr,   D.T TStr)   -> return $ D.T TStr
 
-  (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) ->
-    case map2S (unify env) aParams bParams of
-      Nothing     -> TError $ TypeMismatch a b
-      Just params -> D.T $ TFun params $ unify env aRes bRes
+  (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) -> do
+    temp <- sequence . fmap sequence $ map2S unify aParams bParams
+    case temp of
+      Nothing     -> return $ TError $ TypeMismatch a b
+      Just params -> D.T <$> TFun params <$> unify aRes bRes
 
-  (D.TUnknown, other)      -> checkT env other
-  (other,      D.TUnknown) -> checkT env other
-  (_,          _)          -> TError $ TypeMismatch a b
+  (D.TUnknown, other)      -> checkT other
+  (other,      D.TUnknown) -> checkT other
+  (_,          _)          -> return $ TError $ TypeMismatch a b
