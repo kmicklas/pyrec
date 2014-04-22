@@ -1,12 +1,15 @@
 module Pyrec.Check where
 
-import           Control.Monad
+import           Prelude                 hiding (map, mapM)
+
 import           Control.Applicative
+import           Control.Monad           hiding (mapM)
+import           Control.Monad.Reader    hiding (mapM)
 
-import           Data.List (find, mapAccumL)
-
+import           Data.List                      (find, mapAccumL)
 import qualified Data.Map          as M
 import           Data.Map                       (Map)
+import           Data.Traversable        hiding (for, mapAccumL)
 
 import           Pyrec.Desugar                  (Entry)
 
@@ -17,9 +20,9 @@ import           Pyrec.IR                hiding (Pattern)
 import           Pyrec.IR.Desugar  as D
 import qualified Pyrec.IR.Check    as C
 
-type Env = Map Id Entry
-
 type Pattern = IR.Pattern D.BindT BindN
+type Env     = Map Id Entry
+type CK      = Reader Env
 
 emptyEnv :: Env
 emptyEnv = M.empty
@@ -54,15 +57,15 @@ tc env (D.E l t e) = case e of
             where fixField :: D.BindT -> D.BindT
                   fixField (BT bl bi t) = BT bl bi $ checkT (M.insert bi envData env) t
 
-          variants'        = map fixVar variants
+          variants'        = fixVar <$> variants
 
           bindConstrs :: Variant D.BindT BindN -> (Id , Entry)
           bindConstrs (Variant (BN vl vi) ps) = (vi, Def Val (BT vl vi $ T $ k $ TIdent vi) ())
             where k = case ps of
                     Nothing     -> id
-                    Just params -> TFun (map (\(BT _ _ t) -> t) params) . T
+                    Just params -> TFun (for params $ \(BT _ _ t) -> t) . T
 
-          env'             = M.union (M.fromList $ (bi, envData) : map bindConstrs variants') env
+          env'             = M.union (M.fromList $ (bi, envData) : fmap bindConstrs variants') env
           e'@(C.E _ t'  _) = fixType env' e t
 
           data'            = Data i variants'
@@ -74,9 +77,9 @@ tc env (D.E l t e) = case e of
 
   App f args -> se t' $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
-          args' = map (tc env) args
+          args' = tc env <$> args
           getT (C.E _ t _) = t
-          ft = D.T $ TFun (map getT args') t
+          ft = D.T $ TFun (getT <$> args') t
           t' = case ft' of
             D.T (TFun _ retT) -> retT
             _                 -> D.TError $ D.TypeMismatch ft ft'
@@ -141,7 +144,7 @@ checkT :: Env -> D.Type -> D.Type
 checkT env TUnknown     = TUnknown
 checkT env t@(D.T TNum) = t
 checkT env t@(D.T TStr) = t
-checkT env (D.T (TFun args res)) = D.T $ TFun (map (checkT env) args) res
+checkT env (D.T (TFun args res)) = D.T $ TFun (checkT env <$> args) res
 
 -- expected then got
 unify :: Env -> D.Type -> D.Type -> D.Type

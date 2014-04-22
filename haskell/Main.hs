@@ -1,5 +1,7 @@
 module Main where
 
+import           Control.Monad.Writer
+
 import qualified Data.Map          as M
 import           Data.Map               (Map)
 
@@ -26,7 +28,7 @@ ffiEnv = M.fromList $ fmap (uncurry numBinOp) [
           , Def Val (D.BT (pos l) n $ T $ TFun [T TNum, T TNum] $ T TNum) ())
 
 checkEmit :: D.Expr -> String
-checkEmit e = emit $ compile $ fst $ report $ tc ffiEnv e
+checkEmit e = emit $ compile $ fst . runWriter . report $ tc ffiEnv e
 
 main = putStr $ checkEmit prog4
 
