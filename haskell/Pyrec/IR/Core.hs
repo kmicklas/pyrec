@@ -3,6 +3,7 @@ module Pyrec.IR.Core where
 
 import qualified Pyrec.IR as IR
 import           Pyrec.IR.Desugar (Loc, BindN, BindT, Type, TypeError)
+
 data Id
   = Bound Loc String
   deriving (Eq, Show)
