@@ -31,4 +31,11 @@ data TypeError
 
 data Expr
   = E Loc Type (IR.Expr BindT BindN Id Type Expr)
+  | Error ErrorMessage
   deriving (Eq, Show)
+
+data Error
+  = MalformedBlock
+  deriving (Eq, Show)
+
+type ErrorMessage = (Loc, Error)

@@ -8,14 +8,14 @@ import           Data.List (find, mapAccumL)
 import qualified Data.Map          as M
 import           Data.Map                       (Map)
 
+import           Pyrec.Desugar                  (Entry)
+
 import           Pyrec.Misc
 
 import qualified Pyrec.IR          as IR        (Pattern)
 import           Pyrec.IR                hiding (Pattern)
 import           Pyrec.IR.Desugar  as D
 import qualified Pyrec.IR.Check    as C
-
-type Entry = Decl D.BindT BindN ()
 
 type Env = Map Id Entry
 
