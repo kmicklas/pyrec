@@ -6,10 +6,10 @@ import           Control.Applicative
 import           Control.Monad           hiding (mapM)
 import           Control.Monad.Reader    hiding (mapM)
 
-import           Data.List                      (find, mapAccumL)
+import           Data.List                      (find)
 import qualified Data.Map          as M
 import           Data.Map                       (Map)
-import           Data.Traversable        hiding (for, mapAccumL)
+import           Data.Traversable        hiding (for)
 
 import           Pyrec.Desugar                  (Entry)
 
@@ -33,8 +33,8 @@ fixType env (D.E l et e) t = tc env $ D.E l (unify env et t) e
 tc :: Env -> D.Expr -> C.Expr
 tc env (D.E l t e) = case e of
 
-  Num n -> se (unify env t (D.T TNum)) $ Num n
-  Str s -> se (unify env t (D.T TStr)) $ Str s
+  Num n -> se (unify env t $ D.T TNum) $ Num n
+  Str s -> se (unify env t $ D.T TStr) $ Str s
 
   Ident i -> case M.lookup i env of
     Nothing -> se t $ Ident $ C.Unbound i
@@ -75,6 +75,14 @@ tc env (D.E l t e) = case e of
     Just (Def dt (BT l _ t') _) -> se t'' $ Assign (C.Bound dt l i) v'
       where v'@(C.E _ t'' _) = fixType env v $ unify env t t'
 
+  Fun params body -> se t' $ Fun params' body'
+    where params'               = for params  $ \(BT l i t) -> BT l i $ checkT env t
+          bindParams (BT l i t) = (i, Def Val (BT l i t) ())
+          env'                  = M.union (M.fromList $ bindParams <$> params') env
+          body'@(C.E _ retT _)  = tc env' body
+          t'                    = unify env t $ D.T
+                                  $ TFun (for params' $ \(BT pl ps pt) -> pt) retT
+
   App f args -> se t' $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
           args' = tc env <$> args
@@ -91,8 +99,8 @@ tc env (D.E l t e) = case e of
           bind t p = case p of
 
             (Binding (BT l i t')) -> ( True
-                                    , Binding $ BT l i t''
-                                    , M.singleton i $ Def Val (BT l i t'') ())
+                                     , Binding $ BT l i t''
+                                     , M.singleton i $ Def Val (BT l i t'') ())
               where t'' = unify env t t'
 
             (Constr ci pats) -> result
@@ -141,19 +149,23 @@ tc env (D.E l t e) = case e of
 
 
 checkT :: Env -> D.Type -> D.Type
-checkT env TUnknown     = TUnknown
-checkT env t@(D.T TNum) = t
-checkT env t@(D.T TStr) = t
-checkT env (D.T (TFun args res)) = D.T $ TFun (checkT env <$> args) res
+checkT env t = case t of
+  TUnknown            -> TUnknown
+  D.T TNum            -> t
+  D.T TStr            -> t
+  D.T (TFun args res) -> D.T $ TFun (checkT env <$> args) res
 
 -- expected then got
 unify :: Env -> D.Type -> D.Type -> D.Type
-unify env D.TUnknown t          = checkT env t
-unify env t D.TUnknown          = checkT env t
-unify env (D.T TNum) (D.T TNum) = D.T TNum
-unify env (D.T TStr) (D.T TStr) = D.T TStr
-unify env a@(D.T (TFun aArgs aRes)) b@(D.T (TFun bArgs bRes)) =
-  if length aArgs == length bArgs
-  then D.T $ TFun (zipWith (unify env) aArgs bArgs) $ unify env aRes bRes
-  else TError $ TypeMismatch a b
-unify env a@(D.T _) b@(D.T _) = TError $ TypeMismatch a b
+unify env a b = case (a, b) of
+  (D.T TNum,   D.T TNum)   -> D.T TNum
+  (D.T TStr,   D.T TStr)   -> D.T TStr
+
+  (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) ->
+    case map2S (unify env) aParams bParams of
+      Nothing     -> TError $ TypeMismatch a b
+      Just params -> D.T $ TFun params $ unify env aRes bRes
+
+  (D.TUnknown, other)      -> checkT env other
+  (other,      D.TUnknown) -> checkT env other
+  (_,          _)          -> TError $ TypeMismatch a b
