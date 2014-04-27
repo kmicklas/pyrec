@@ -70,10 +70,12 @@ tc env (D.E l t e) = case e of
 
           data'            = Data i variants'
 
-  Assign i v -> case M.lookup i env of
-    Nothing -> se t $ Ident $ C.Unbound i
-    Just (Def dt (BT l _ t') _) -> se t'' $ Assign (C.Bound dt l i) v'
-      where v'@(C.E _ t'' _) = fixType env v $ unify env t t'
+  Assign i v -> se t'' $ Assign i' v'
+     where (i', t') = case M.lookup i env of
+             Nothing                     -> (C.Unbound i    , t)
+             Just (Def dt (BT l _ t') _) -> (C.Bound dt l i , t')
+
+           v'@(C.E _ t'' _) = fixType env v t'
 
   Fun params body -> se t' $ Fun params' body'
     where params'               = for params  $ \(BT l i t) -> BT l i $ checkT env t
