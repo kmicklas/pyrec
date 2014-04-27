@@ -5,23 +5,33 @@ module Pyrec.IR where
 
 import Data.Foldable
 import Data.Traversable
+import Data.Map (Map)
+
+type FieldName = String
 
 data Expr
-     bt -- Binding with Type
-     bn -- Binding with No type
-     id -- Identifier
-     ty -- Type
-     ex -- Expression
+     bt -- ^ Binding with Type
+     bn -- ^ Binding with No type
+     id -- ^ Identifier
+     ty -- ^ Type
+     ex -- ^ Expression
   = Num Double
   | Str String
   | Ident id
   | Fun [bt] ex
+
   | Let   (Decl bt bn ex) ex
   | Graph [Decl bt bn ex] ex
+
   | App ex [ex]
   | Assign id ex
   | Cases ty ex [Case bt bn ex]
+
   | Try ex bt ex
+
+  | EmptyObject
+  | Extend ex FieldName ex
+  | Access ex FieldName
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Type id ty
@@ -30,6 +40,8 @@ data Type id ty
   | TStr
   | TIdent id
   | TFun [ty] ty
+
+  | TObject (Map FieldName ty)
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data DefType
