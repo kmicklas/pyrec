@@ -34,7 +34,7 @@ data Expr
   deriving (Eq, Show)
 
 data Error
-  = MalformedBlock
+  = EndBlockWithDef
   deriving (Eq, Show)
 
 type ErrorMessage = (Loc, Error)
