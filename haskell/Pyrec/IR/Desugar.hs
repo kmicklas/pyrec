@@ -1,6 +1,8 @@
 module Pyrec.IR.Desugar where
 -- The IR after desugaring
 
+import Data.Map (Map)
+
 import Text.Parsec.Pos
 
 import qualified Pyrec.IR as IR
@@ -19,7 +21,7 @@ data BindN
 data Type
   = T (IR.Type Id Type)
   | TUnknown
-  | PartialObj Type
+  | PartialObj (Map IR.FieldName Type)
   | TError TypeError
   deriving (Eq, Show)
 

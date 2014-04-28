@@ -9,7 +9,7 @@ import           Control.Monad.Reader    hiding (mapM, sequence)
 import           Data.List                      (find)
 import qualified Data.Map          as M
 import           Data.Map                       (Map)
-import           Data.Maybe                     (isJust)
+import           Data.Maybe                     (isJust, fromMaybe)
 import           Data.Traversable        hiding (for)
 
 import           Pyrec.Desugar                  (Entry)
@@ -148,6 +148,35 @@ tc env (D.E l t e) = case e of
 
           t'' = if err then TError $ D.CantCaseAnalyze t' else t'
 
+  EmptyObject -> se (unify env t $ D.T $ TObject M.empty) EmptyObject
+
+  -- can this be made less rediculous?
+  Extend obj fi fv -> se t' $ Extend obj' fi fv'
+    where fv' @(C.E _ ft  _) = tc env fv
+
+          ot                 = unify env t $ case ot of
+            D.T (TObject o)   -> D.T $ TObject $ trim o
+            D.PartialObj p    -> D.PartialObj  $ trim p
+            _                 -> D.PartialObj $ M.empty
+          trim map           = M.delete fi map
+
+          obj'@(C.E _ ot' _) = fixType env obj ot
+
+          t'                 = unify env t $ case ot of
+            D.T (TObject o)   -> D.T $ TObject $ tryRefine o
+            D.PartialObj p    -> D.PartialObj  $ tryRefine p
+            _                 -> t'
+          tryRefine map      = M.insert fi ft map
+
+  Access obj fi -> se t'' $ Access obj' fi
+    where t'                 = D.PartialObj $ M.singleton fi t
+          obj'@(C.E _ ot  _) = fixType env obj t'
+          t''                = unify env t $ case ot of
+            D.T (TObject o)   -> tryRefine o
+            D.PartialObj p    -> tryRefine p
+            _                 -> t'
+          tryRefine map      = fromMaybe t' $ M.lookup fi map
+
   where se = C.E l
 
 
@@ -175,9 +204,9 @@ unify env a b = case (a, b) of
       guard $ and $ allGood <$> M.elems match    -- no type errors
       return match
 
-  (l@(D.T (TObject _)), r@(D.PartialObj (D.T (TObject _)))) ->
+  (l@(D.T (TObject _)), r@(D.PartialObj _)) ->
     recur r l                                    -- generative recursion
-  (D.PartialObj (D.T (TObject p)), D.T (TObject o)) ->
+  (D.PartialObj p, D.T (TObject o)) ->
     try $ D.T <$> TObject <$> do
       guard $ M.isSubmapOfBy (\_ _ -> True) p o  -- is partial subset
       let update = M.intersectionWith recur o p  -- unify fields in common
@@ -201,5 +230,5 @@ unify env a b = case (a, b) of
                 help t = case t of
                   (TError     _) -> Nothing
                   (TUnknown)     -> Just t
-                  (PartialObj t) -> PartialObj <$> help t
+                  (PartialObj t) -> PartialObj <$> (sequence $ fmap help t)
                   (T          t) -> T          <$> (sequence $ fmap help t)
