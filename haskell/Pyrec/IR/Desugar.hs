@@ -19,6 +19,7 @@ data BindN
 data Type
   = T (IR.Type Id Type)
   | TUnknown
+  | PartialObj Type
   | TError TypeError
   deriving (Eq, Show)
 

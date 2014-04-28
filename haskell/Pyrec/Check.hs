@@ -1,14 +1,15 @@
 module Pyrec.Check where
 
-import           Prelude                 hiding (map, mapM)
+import           Prelude                 hiding (map, mapM, sequence)
 
 import           Control.Applicative
-import           Control.Monad           hiding (mapM)
-import           Control.Monad.Reader    hiding (mapM)
+import           Control.Monad           hiding (mapM, sequence)
+import           Control.Monad.Reader    hiding (mapM, sequence)
 
 import           Data.List                      (find)
 import qualified Data.Map          as M
 import           Data.Map                       (Map)
+import           Data.Maybe                     (isJust)
 import           Data.Traversable        hiding (for)
 
 import           Pyrec.Desugar                  (Entry)
@@ -164,10 +165,41 @@ unify env a b = case (a, b) of
   (D.T TStr,   D.T TStr)   -> D.T TStr
 
   (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) ->
-    case map2S (unify env) aParams bParams of
-      Nothing     -> TError $ TypeMismatch a b
-      Just params -> D.T $ TFun params $ unify env aRes bRes
+    try $ fmap D.T $ TFun <$> map2S recur aParams bParams <*> return aRes
+
+  ((D.T (TObject o1)), (D.T (TObject o2))) ->
+    try $ D.T <$> TObject <$> do
+      guard $ M.size o1 == M.size o2             -- same size
+      let match = M.intersectionWith recur o1 o2 -- unify common elements
+      guard $ M.size match == M.size o1          -- intersection same size means ident keys
+      guard $ and $ allGood <$> M.elems match    -- no type errors
+      return match
+
+  (l@(D.T (TObject _)), r@(D.PartialObj (D.T (TObject _)))) ->
+    recur r l                                    -- generative recursion
+  (D.PartialObj (D.T (TObject p)), D.T (TObject o)) ->
+    try $ D.T <$> TObject <$> do
+      guard $ M.isSubmapOfBy (\_ _ -> True) p o  -- is partial subset
+      let update = M.intersectionWith recur o p  -- unify fields in common
+      guard $ and $ allGood <$> M.elems update   -- make sure unification succeeded
+      return $ M.union update o                  -- perform updates
+
 
   (D.TUnknown, other)      -> checkT env other
   (other,      D.TUnknown) -> checkT env other
+
   (_,          _)          -> TError $ TypeMismatch a b
+
+  where recur = unify env
+        try :: Maybe D.Type -> D.Type
+        try t = case t of
+          Just t  -> t
+          Nothing -> TError $ TypeMismatch a b
+
+        allGood t = isJust $ help t
+          where help :: D.Type -> Maybe D.Type
+                help t = case t of
+                  (TError     _) -> Nothing
+                  (TUnknown)     -> Just t
+                  (PartialObj t) -> PartialObj <$> help t
+                  (T          t) -> T          <$> (sequence $ fmap help t)

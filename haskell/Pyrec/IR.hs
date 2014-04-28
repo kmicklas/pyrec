@@ -31,7 +31,7 @@ data Expr
 
   | EmptyObject
   | Extend ex FieldName ex
-  | Access ex FieldName
+  | Access ex FieldName ty
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Type id ty
