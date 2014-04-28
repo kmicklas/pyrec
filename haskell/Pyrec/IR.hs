@@ -39,10 +39,17 @@ data Type id ty
   | TNum
   | TStr
   | TIdent id
-  | TFun [ty] ty
+  | TFun Sort [ty] ty
+
+  | TType
 
   | TObject (Map FieldName ty)
   deriving (Eq, Show, Functor, Foldable, Traversable)
+
+data Sort
+  = SType
+  | SKind
+  deriving (Eq, Show)
 
 data DefType
   = Val
