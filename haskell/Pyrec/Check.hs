@@ -155,11 +155,13 @@ checkT env t = case t of
   D.T TNum                  -> t
   D.T TStr                  -> t
   D.T (TFun SType args res) -> D.T $ TFun SType (checkT env <$> args) res
-  D.T k@(TFun SKind _ _)    -> checkKind k
+  k@(D.T (TFun SKind _ _))  -> checkKind k
 
 checkKind :: D.Type -> D.Type
-checkKind TUnknown                    = TUnknown
-checkKind (D.T (TFun SKind args res)) = D.T $ TFun SKind (checkKind <$> args) res
+checkKind f = case f of
+  (TUnknown)                  -> TUnknown
+  (D.T TType)                 -> D.T $ TType
+  (D.T (TFun SKind args res)) -> D.T $ TFun SKind (checkKind <$> args) res
 
 -- expected then got
 unify :: Env -> D.Type -> D.Type -> D.Type
@@ -167,11 +169,18 @@ unify env a b = case (a, b) of
   (D.T TNum,   D.T TNum)   -> D.T TNum
   (D.T TStr,   D.T TStr)   -> D.T TStr
 
-  (D.T (TFun s aParams aRes), D.T (TFun bParams bRes)) ->
-    case map2S (unify env) aParams bParams of
-      Nothing     -> TError $ TypeMismatch a b
-      Just params -> D.T $ TFun params $ unify env aRes bRes
+  (D.T (TFun as aParams aRes), D.T (TFun bs bParams bRes)) ->
+    try $ D.T <$> do
+      guard $ as == bs
+      params <- map2S recur aParams bParams
+      return $ TFun as params $ recur aRes bRes
 
   (D.TUnknown, other)      -> checkT env other
   (other,      D.TUnknown) -> checkT env other
   (_,          _)          -> TError $ TypeMismatch a b
+  
+  where recur = unify env
+        try :: Maybe D.Type -> D.Type
+        try t = case t of
+          Just t  -> t
+          Nothing -> TError $ TypeMismatch a b
