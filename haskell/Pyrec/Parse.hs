@@ -33,11 +33,11 @@ block :: Parse Block
 block = many stmt
 
 stmt :: Parse (Node Statement)
-stmt = node $ try (fmap LetStmt $ Let <$> (bind <* op "=") <*> expr) <|>
+stmt = node $ try (fmap LetStmt $ Let <$> bind <* op "=" <*> expr) <|>
               (ExprStmt <$> expr)
 
 bind :: Parse Bind
-bind = Bind <$> iden <*> optionMaybe type_
+bind = Bind <$> iden <* op "::" <*> optionMaybe type_
 
 type_ :: Parse (Node Type)
 type_ = node $ TId <$> iden
