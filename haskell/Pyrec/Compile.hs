@@ -14,16 +14,16 @@ type Env   = Map Id (IR.Decl () Id ())
 type Chunk = (Module, [Statement], Id)
 
 tempId :: Loc -> Id
-tempId l = "%temp$" ++ show l
+tempId l = "%temp$" ++ showLoc l
 
 constId :: Loc -> Id
-constId l = "@const$" ++ show l
+constId l = "@const$" ++ showLoc l
 
 bound :: R.Id -> Id
-bound (R.Bound l n) = "%" ++ n ++ "$" ++ show l
+bound (R.Bound l n) = "%" ++ n ++ "$" ++ showLoc l
 
 caseBN :: BindN -> Id
-caseBN (BN l n) = "@case$" ++ n ++ "$" ++ show l
+caseBN (BN l n) = "@case$" ++ n ++ "$" ++ showLoc l
 
 ssa :: Env -> R.Expr -> Chunk
 ssa env (R.E l _ e) = case e of

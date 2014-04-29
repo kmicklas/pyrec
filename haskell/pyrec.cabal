@@ -30,3 +30,4 @@ executable pyrec
     ,                     directory
     ,                     filepath
     ,                     parsec      >=3
+    ,                     hashable

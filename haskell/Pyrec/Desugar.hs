@@ -12,6 +12,7 @@ import           Data.Traversable
 
 import           Text.Parsec.Pos
 
+import           Pyrec.Misc
 import           Pyrec.AST
 import qualified Pyrec.IR            as IR
 import qualified Pyrec.IR.Desugar    as D
@@ -25,7 +26,7 @@ convBlock :: Block -> DS D.Expr
 convBlock [] = return $ error "empty block"
 convBlock [Node p (ExprStmt e)] = convExpr e
 convBlock (Node p (ExprStmt e) : rest) =
-  convBlock $ Node p (LetStmt (Let (Bind (Node p $ "temp@" ++ show p)
+  convBlock $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p)
                                          Nothing) e)) : rest
 convBlock (Node p (LetStmt (Let bd e)) : rest) =
   D.E p D.TUnknown <$>
