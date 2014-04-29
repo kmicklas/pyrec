@@ -2,13 +2,15 @@ module Main where
 
 import           Control.Applicative
 import           Control.Monad.Writer
-import           System.IO
 
 import qualified Data.Map          as M
 import           Data.Map               (Map)
 
 import           Text.Parsec.Pos
 import           Text.Parsec.Error
+
+import qualified System.IO        as IO
+import qualified System.Exit      as Exit
 
 import qualified Pyrec.AST        as A
 
@@ -51,10 +53,14 @@ main = pretty =<< fmap runWriter . parseEmit <$> getContents
 
 pretty :: Either ParseError (String, Errors) -> IO ()
 pretty either = case either of
-  (Left  err)          -> hPutStrLn stderr $ show err
+  (Left  err)          -> do
+    IO.hPutStrLn IO.stderr $ show err
+    Exit.exitFailure
+
   (Right (llvm, errs)) -> do
-    forM errs $ hPutStrLn stderr . show
-    hPutStr stdout llvm
+    forM errs $ IO.hPutStrLn IO.stderr . show
+    IO.hPutStr IO.stdout llvm
+    Exit.exitSuccess
 
 -- TESTING --
 pos = newPos "test" 1 . fromInteger
