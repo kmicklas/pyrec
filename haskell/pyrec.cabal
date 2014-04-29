@@ -29,3 +29,4 @@ executable pyrec
     ,                     containers
     ,                     directory
     ,                     filepath
+    ,                     parsec      >=3

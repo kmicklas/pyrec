@@ -35,7 +35,7 @@ checkEmit :: D.Expr -> Writer R.Errors String
 checkEmit = fmap emit . fmap compile . report . tc ffiEnv
 
 desugarEmit :: A.Node A.Expr -> Writer R.Errors String
-desugarEmit = checkEmit <=< mapWriter (fmap . fmap . fmap $ R.Earlier) . undefined
+desugarEmit = checkEmit <=< (mapWriter $ fmap . fmap . fmap $ R.Earlier) . undefined
 
 main = putStr $ fst $ runWriter $ checkEmit prog4
 
