@@ -8,11 +8,8 @@ LD = llvm-link
 
 LDFLAGS = -lgmp
 
-program: program.bc
-program.bc: runtime.bc out.bc
-
-out.ll: pyrec
-	./pyrec > out.ll
+%.ll: %.arr pyrec
+	./pyrec < $< > $@
 
 %.bc: runtime/%.c
 	$(CC) $(CFLAGS) -o $@ $<
@@ -20,10 +17,10 @@ out.ll: pyrec
 %.bc: %.ll
 	$(AS) $(AFLAGS) -o $@ $<
 
-%.bc:
+%.lbc: runtime.bc %.bc
 	$(LD) -o $@ $^
 
-%:    %.bc
+%:    %.lbc
 	$(CC) $(LDFLAGS) -o $@ $<
 
 pyrec:
@@ -33,6 +30,6 @@ pyrec:
 
 
 clean:
-	rm -f pyrec *.bc *.ll program
+	rm -f pyrec *.lbc *.bc *.ll program
 
 .PHONY: clean
