@@ -16,6 +16,7 @@ parseString p input = runParser p False "test" input
 
 program :: Parse Module
 program = endToken >> Module <$> provide <*> many import_ <*> block
+                   <* spaces <* eof
 
 provide :: Parse (Node Provide)
 provide = node $ option NoProvide $
