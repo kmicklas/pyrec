@@ -14,19 +14,31 @@ import           Pyrec.AST
 import qualified Pyrec.IR            as IR
 import qualified Pyrec.IR.Desugar    as D
 
-type DS    = Writer [D.ErrorMessage]
+type DS = Writer [D.ErrorMessage]
 
---convBlock :: Block -> DS D.Expr
---convBlock [] = return $ undefined
---convBlock (Node p (LetStmt (Let bd (Node pe e))) : _) = undefined
---  where afterDef p [] = do tell (p, D.EndBlockWithDef)
---                           convBlock []
---        afterStmt p [] = undefined
---
---convExpr :: Node Expr -> DS D.Expr
---convExpr (Node p e) = case e of
---  Num n -> return $ mkT IR.TNum $ IR.Num n
---  
---  where mk = D.E p
---        mkT = mk . D.T
---        mkU = mk D.TUnknown
+convModule :: Module -> DS D.Expr
+convModule (Module _ _ b) = convBlock b
+
+convBlock :: Block -> DS D.Expr
+convBlock [] = return $ error "empty block"
+convBlock [Node p (ExprStmt e)] = convExpr e
+convBlock (Node p (ExprStmt e) : rest) =
+  convBlock $ Node p (LetStmt (Let (Bind (Node p $ "temp@" ++ show p)
+                                         Nothing) e)) : rest
+convBlock (Node p (LetStmt (Let bd e)) : rest) =
+  D.E p D.TUnknown <$>
+    (IR.Let <$> (IR.Def IR.Val <$> convBind bd <*> convExpr e)
+            <*> afterDef p rest)
+  where afterDef p [] = do tell [(p, D.EndBlockWithDef)]
+                           convBlock []
+
+convBind :: Bind -> DS D.BindT
+convBind (Bind (Node p id) Nothing) = return $ D.BT p id D.TUnknown
+
+convExpr :: Node Expr -> DS D.Expr
+convExpr (Node p e) = case e of
+  Num n -> return $ mkT IR.TNum $ IR.Num n
+  
+  where mk = D.E p
+        mkT = mk . D.T
+        mkU = mk D.TUnknown
