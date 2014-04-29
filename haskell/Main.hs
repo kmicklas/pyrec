@@ -2,6 +2,7 @@ module Main where
 
 import           Control.Applicative
 import           Control.Monad.Writer
+import           System.IO
 
 import qualified Data.Map          as M
 import           Data.Map               (Map)
@@ -46,7 +47,11 @@ parseEmit :: String -> Either ParseError (Writer Errors String)
 parseEmit = desugarEmit <.> parseString program
 
 main :: IO ()
-main = putStrLn =<< show . fmap runWriter . parseEmit <$> getContents
+main = output =<< fmap runWriter . parseEmit <$> getContents
+  where output (Left  err)          = hPutStrLn stderr $ show err
+        output (Right (llvm, errs)) =
+          do forM errs $ hPutStrLn stderr . show
+             hPutStr stdout llvm
 
 -- TESTING --
 pos = newPos "test" 1 . fromInteger
