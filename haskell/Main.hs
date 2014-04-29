@@ -7,6 +7,7 @@ import qualified Data.Map          as M
 import           Data.Map               (Map)
 
 import           Text.Parsec.Pos
+import           Text.Parsec.Error
 
 import qualified Pyrec.AST        as A
 
@@ -15,6 +16,7 @@ import           Pyrec.IR.Desugar as D
 import qualified Pyrec.IR.Check   as C
 import qualified Pyrec.IR.Core    as R
 
+import           Pyrec.Parse      as P
 import           Pyrec.Desugar    as D
 import           Pyrec.Check      as C
 import           Pyrec.Report     as R
@@ -31,13 +33,20 @@ ffiEnv = M.fromList $ fmap (uncurry numBinOp) [
           ( n
           , Def Val (D.BT (pos l) n $ T $ TFun SType [T TNum, T TNum] $ T TNum) ())
 
+infixr 9 <.>
+a <.> b = fmap a . b
+
 checkEmit :: D.Expr -> Writer R.Errors String
-checkEmit = fmap emit . fmap compile . report . tc ffiEnv
+checkEmit = emit <.> compile <.> report . tc ffiEnv
 
-desugarEmit :: A.Node A.Expr -> Writer R.Errors String
-desugarEmit = checkEmit <=< (mapWriter $ fmap . fmap . fmap $ R.Earlier) . undefined
+desugarEmit :: A.Module -> Writer R.Errors String
+desugarEmit = checkEmit <=< (mapWriter $ fmap . fmap . fmap $ R.Earlier) . convModule
 
-main = putStr $ fst $ runWriter $ checkEmit prog4
+parseEmit :: String -> Either ParseError (Writer Errors String)
+parseEmit = desugarEmit <.> parseString program
+
+main :: IO ()
+main = putStrLn =<< show . fmap runWriter . parseEmit <$> getContents
 
 -- TESTING --
 pos = newPos "test" 1 . fromInteger
