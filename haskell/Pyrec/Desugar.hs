@@ -44,7 +44,8 @@ convBind (Bind (Node p id) Nothing) = return $ D.BT p id D.TUnknown
 
 convExpr :: Node Expr -> DS D.Expr
 convExpr (Node p e) = case e of
-  Num n -> return $ mkT IR.TNum $ IR.Num n
+  Num n          -> return $ mkT IR.TNum $ IR.Num n
+  Id (Node _ id) -> return $ mkU $ IR.Ident id
   
   where mk = D.E p
         mkT = mk . D.T

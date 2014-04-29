@@ -43,7 +43,8 @@ type_ :: Parse (Node Type)
 type_ = node $ TId <$> iden
 
 expr :: Parse (Node Expr)
-expr = node $ Num <$> number
+expr = node $ Num <$> number <|>
+              Id  <$> iden
 
 none :: Parse ()
 none = return ()

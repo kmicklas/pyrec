@@ -58,4 +58,5 @@ data Type
 
 data Expr
   = Num Double
+  | Id Id
   deriving (Eq, Show, Ord)
