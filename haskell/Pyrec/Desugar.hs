@@ -10,6 +10,8 @@ import qualified Data.Map            as M
 import           Data.Map                        (Map)
 import           Data.Traversable
 
+import           Text.Parsec.Pos
+
 import           Pyrec.AST
 import qualified Pyrec.IR            as IR
 import qualified Pyrec.IR.Desugar    as D
@@ -31,6 +33,11 @@ convBlock (Node p (LetStmt (Let bd e)) : rest) =
             <*> afterDef p rest)
   where afterDef p [] = do tell [(p, D.EndBlockWithDef)]
                            convBlock []
+        afterDef p1 rest@(Node p2 _ : _) =
+          do if sourceLine p1 == sourceLine p2
+             then tell [(p2, D.SameLineStatements)]
+             else return ()
+             convBlock rest
 
 convBind :: Bind -> DS D.BindT
 convBind (Bind (Node p id) Nothing) = return $ D.BT p id D.TUnknown

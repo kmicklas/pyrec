@@ -38,6 +38,7 @@ data Expr
 
 data Error
   = EndBlockWithDef
+  | SameLineStatements
   deriving (Eq, Show)
 
 type ErrorMessage = (Loc, Error)
