@@ -54,7 +54,7 @@ node :: Parse a -> Parse (Node a)
 node p = Node <$> getPosition <*> p
 
 number :: Parse Double
-number = read <$> many1 digit
+number = tok "number" $ read <$> many1 digit
 
 iden :: Parse Id
 iden = tok "identifier" $ node $
