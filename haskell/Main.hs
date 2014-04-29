@@ -47,11 +47,14 @@ parseEmit :: String -> Either ParseError (Writer Errors String)
 parseEmit = desugarEmit <.> parseString program
 
 main :: IO ()
-main = output =<< fmap runWriter . parseEmit <$> getContents
-  where output (Left  err)          = hPutStrLn stderr $ show err
-        output (Right (llvm, errs)) =
-          do forM errs $ hPutStrLn stderr . show
-             hPutStr stdout llvm
+main = pretty =<< fmap runWriter . parseEmit <$> getContents
+
+pretty :: Either ParseError (String, Errors) -> IO ()
+pretty either = case either of
+  (Left  err)          -> hPutStrLn stderr $ show err
+  (Right (llvm, errs)) -> do
+    forM errs $ hPutStrLn stderr . show
+    hPutStr stdout llvm
 
 -- TESTING --
 pos = newPos "test" 1 . fromInteger

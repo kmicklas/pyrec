@@ -30,7 +30,7 @@ data Type
 data TypeError
   = TypeMismatch {expected :: Type, got :: Type}
   | CantCaseAnalyze               { got :: Type}
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Expr
   = E Loc Type (IR.Expr BindT BindN Id Type Expr)
@@ -39,6 +39,16 @@ data Expr
 data Error
   = EndBlockWithDef
   | SameLineStatements
-  deriving (Eq, Show)
+  deriving (Eq)
 
 type ErrorMessage = (Loc, Error)
+
+instance Show TypeError where
+  show e = case e of
+    TypeMismatch exp got -> "Expected " ++ show exp ++ ", got " ++ show got
+    CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ show ty
+
+instance Show Error where
+  show e = case e of
+    EndBlockWithDef    -> "The last element in a block must be an expression"
+    SameLineStatements -> "Two statements should never be put on the same line"

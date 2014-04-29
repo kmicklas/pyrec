@@ -15,10 +15,19 @@ data Expr
   deriving (Eq, Show)
 
 data Error
-  = UnboundId String
+  = Earlier D.Error
+
+  | UnboundId String
   | MutateVar Loc String
   | TypeError TypeError
-  | Earlier D.Error
-  deriving (Eq, Show)
+  deriving (Eq)
 
 type ErrorMessage = (Loc, Error)
+
+instance Show Error where
+  show e = case e of
+    Earlier error       -> show error
+
+    UnboundId ident     -> show ident ++ " is unbound"
+    MutateVar loc ident -> "cannot mutate non-variable " ++ ident ++ ", bound at " ++ show loc
+    TypeError terror    -> show terror
