@@ -1,6 +1,5 @@
 module Pyrec.SSA where
 
-import qualified Data.Map as M
 import           Data.Map (Map)
 
 type Id = String

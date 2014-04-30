@@ -29,7 +29,7 @@ report (E l t e) = case e of
   Try e1 bd e2     -> fmap oe $ Try     <$> report e1
                       <*> return bd <*> report e2
   Cases vt v cases -> fmap oe $ Cases vt
-                      <$> report v <*> mapM (mapM report) cases
+                      <$> report v <*> (mapM . mapM) report cases
 
   Ident (Bound   _ il is) -> return $ oe $ Ident $ R.Bound il is
   Ident (Unbound      is) -> err $ R.UnboundId is

@@ -12,21 +12,15 @@ import           Text.Parsec.Error
 import qualified System.IO        as IO
 import qualified System.Exit      as Exit
 
-import qualified Pyrec.AST        as A
+import           Pyrec
 
 import           Pyrec.IR
 import           Pyrec.IR.Desugar as D
-import qualified Pyrec.IR.Check   as C
-import qualified Pyrec.IR.Core    as R
 
-import           Pyrec.Parse      as P
-import           Pyrec.Desugar    as D
-import           Pyrec.Check      as C
 import           Pyrec.Report     as R
-import           Pyrec.Compile    as O
-import           Pyrec.Emit       as E
 
-ffiEnv = M.fromList $ fmap (uncurry numBinOp) [
+foreignEnv :: Map String (Decl BindT bn ())
+foreignEnv = M.fromList $ fmap (uncurry numBinOp) [
   (1000 , "@pyretPlus"  ),
   (1001 , "@pyretMinus" ),
   (1002 , "@pyretTimes" ),
@@ -36,20 +30,8 @@ ffiEnv = M.fromList $ fmap (uncurry numBinOp) [
           ( n
           , Def Val (D.BT (pos l) n $ T $ TFun SType [T TNum, T TNum] $ T TNum) ())
 
-infixr 9 <.>
-a <.> b = fmap a . b
-
-checkEmit :: D.Expr -> Writer R.Errors String
-checkEmit = emit <.> compile <.> report . tc ffiEnv
-
-desugarEmit :: A.Module -> Writer R.Errors String
-desugarEmit = checkEmit <=< (mapWriter $ fmap . fmap . fmap $ R.Earlier) . convModule
-
-parseEmit :: String -> Either ParseError (Writer Errors String)
-parseEmit = desugarEmit <.> parseString program
-
 main :: IO ()
-main = pretty =<< fmap runWriter . parseEmit <$> getContents
+main = pretty =<< fmap runWriter . parseEmit foreignEnv <$> getContents
 
 pretty :: Either ParseError (String, Errors) -> IO ()
 pretty either = case either of
@@ -58,7 +40,7 @@ pretty either = case either of
     Exit.exitFailure
 
   (Right (llvm, errs)) -> do
-    forM errs $ IO.hPutStrLn IO.stderr . show
+    forM_ errs $ IO.hPutStrLn IO.stderr . show
     IO.hPutStr IO.stdout llvm
     Exit.exitSuccess
 
