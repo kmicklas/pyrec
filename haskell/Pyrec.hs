@@ -7,7 +7,6 @@ import           Text.Parsec.Error
 import qualified Pyrec.AST        as A
 
 import qualified Pyrec.IR.Desugar as D
-import qualified Pyrec.IR.Check   as C
 import qualified Pyrec.IR.Core    as R
 
 import qualified Pyrec.Parse      as P
