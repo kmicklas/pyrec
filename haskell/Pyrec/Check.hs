@@ -241,6 +241,6 @@ unify env a b = case (a, b) of
           where help :: D.Type -> Maybe D.Type
                 help t = case t of
                   (TError     _) -> Nothing
-                  (TUnknown)     -> Just t
-                  (PartialObj t) -> PartialObj <$> (sequence $ fmap help t)
-                  (T          t) -> T          <$> (sequence $ fmap help t)
+                  (TUnknown)     -> Just undefined -- doesn't matter what is here
+                  (PartialObj t) -> PartialObj <$> mapM help t
+                  (T          t) -> T          <$> mapM help t
