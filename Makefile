@@ -17,10 +17,10 @@ LDFLAGS = -lgmp
 %.bc: %.ll
 	$(AS) $(AFLAGS) -o $@ $<
 
-%.lbc: runtime.bc %.bc
+%-linked.bc: runtime.bc %.bc
 	$(LD) -o $@ $^
 
-%:    %.lbc
+%:    %-linked.bc
 	$(CC) $(LDFLAGS) -o $@ $<
 
 pyrec:
