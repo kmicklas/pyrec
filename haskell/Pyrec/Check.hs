@@ -41,8 +41,11 @@ tc env (D.E l t e) = case e of
     Just (Def dt (BT l _ t') _) -> e'
       where i' = C.Bound dt l i
             e' = se (unify env t t') $ Ident i'
+    Just (Data (BN l _) _) -> e' -- type-as-term case which shouldn't occur in practice
+      where i' = C.Bound Val l i
+            e' = se (unify env t $ D.T TType) $ Ident i'
 
-  Let (Def kind b@(BT vl vi vt) v) e -> C.E l t' $ Let (newDef v') e'
+  Let (Def kind (BT vl vi vt) v) e -> C.E l t' $ Let (newDef v') e'
     where v'@(C.E _ vt' _) = fixType env v vt
           newDef q         = Def kind (BT vl vi vt') q
           env'             = M.insert vi (newDef ()) env
@@ -70,10 +73,11 @@ tc env (D.E l t e) = case e of
 
           data'            = Data i variants'
 
-  Assign i v -> se t'' $ Assign i' v'
+  Assign i v -> se t'' $ Assign i' v' -- immutability errors caught downstream
      where (i', t') = case M.lookup i env of
-             Nothing                     -> (C.Unbound i    , t)
-             Just (Def dt (BT l _ t') _) -> (C.Bound dt l i , t')
+             Nothing                     -> (C.Unbound     i , t)
+             Just (Def dt (BT l _ t') _) -> (C.Bound dt  l i , t')
+             Just (Data   (BN l _)    _) -> (C.Bound Val l i , t')
 
            v'@(C.E _ t'' _) = fixType env v t'
 
@@ -83,7 +87,7 @@ tc env (D.E l t e) = case e of
           env'                  = M.union (M.fromList $ bindParams <$> params') env
           body'@(C.E _ retT _)  = tc env' body
           t'                    = unify env t $ D.T
-                                  $ TFun SType (for params' $ \(BT pl ps pt) -> pt) retT
+                                  $ TFun SType (for params' $ \(BT _ _ pt) -> pt) retT
 
   App f args -> se t' $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
@@ -112,7 +116,7 @@ tc env (D.E l t e) = case e of
                     -- outer maybe signifies error, inner maybe is use to distinguish
                     -- pyret's "| Constructor()" vs "| Constructor"
                     params :: Maybe (Maybe [D.Type])
-                    params = do (Variant vi params) <-
+                    params = do (Variant _ params) <-
                                   ensureIdent t
                                   >>= (\i -> M.lookup i env)
                                   >>= (\x -> case x of
@@ -121,7 +125,7 @@ tc env (D.E l t e) = case e of
 
                                   >>= find (\(Variant vi _) -> vi == ci)
                                 guard $ (length <$> params) == (length <$> pats)
-                                return $ flip (fmap fmap fmap) params $ \(BT _ _ t) -> t
+                                return $ flip (fmap . fmap) params $ \(BT _ _ t) -> t
 
                     results :: Maybe [(Bool, Pattern , Env)]
                     (newerr, results) = case params of
@@ -153,7 +157,7 @@ tc env (D.E l t e) = case e of
   Extend obj fi fv -> se t' $ Extend obj' fi fv'
     where fv' @(C.E _ ft  _) = tc env fv
 
-          ot                 = unify env t $ case ot of
+          ot                 = case t of
             D.T (TObject o)   -> D.T $ TObject $ trim o
             D.PartialObj p    -> D.PartialObj  $ trim p
             _                 -> D.PartialObj $ M.empty
@@ -161,10 +165,10 @@ tc env (D.E l t e) = case e of
 
           obj'@(C.E _ ot' _) = fixType env obj ot
 
-          t'                 = unify env t $ case ot of
+          t'                 = unify env t $ case ot' of
             D.T (TObject o)   -> D.T $ TObject $ tryRefine o
             D.PartialObj p    -> D.PartialObj  $ tryRefine p
-            _                 -> t'
+            _                 -> D.PartialObj  $ M.singleton fi ft
           tryRefine map      = M.insert fi ft map
 
   Access obj fi -> se t'' $ Access obj' fi

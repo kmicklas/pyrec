@@ -1,6 +1,5 @@
 module Pyrec.Misc where
 
-import Control.Monad
 import Control.Applicative
 import Data.Hashable
 import Text.Parsec.Pos
