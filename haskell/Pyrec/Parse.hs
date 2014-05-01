@@ -132,9 +132,10 @@ operatorChar :: Parse Char
 operatorChar = oneOf "+-*/<>="
 
 endToken :: Parse ()
-endToken = skipMany $ ((space >> none) <|>
-                       (char '#' >> manyTill anyChar newline >> none))
-                      >> putState True
+endToken = skipMany $ (<?> "whitspace") $
+             ((space >> none) <|>
+              (char '#' *> manyTill anyChar newline *> none))
+                *> putState True
 
 tok :: String -> Parse a -> Parse a
 tok name p = lookAhead p *> putState False *> p <* endToken <?> name
