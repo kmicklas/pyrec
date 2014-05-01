@@ -4,6 +4,8 @@ import           Control.Monad.Writer
 
 import           Text.Parsec.Error
 
+import           Pyrec.Misc
+
 import qualified Pyrec.AST        as A
 
 import qualified Pyrec.IR.Desugar as D
@@ -15,10 +17,6 @@ import qualified Pyrec.Check      as C
 import qualified Pyrec.Report     as R
 import qualified Pyrec.Compile    as O
 import qualified Pyrec.Emit       as E
-
-infixr 9 <.>
-(<.>) :: Functor f => (a1 -> b) -> (a -> f a1) -> a -> f b
-a <.> b = fmap a . b
 
 checkEmit :: C.Env -> D.Expr -> Writer R.Errors String
 checkEmit foreignEnv = E.emit <.> O.compile <.> R.report . C.tc foreignEnv

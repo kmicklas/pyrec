@@ -18,3 +18,7 @@ showLoc :: SourcePos -> String
 showLoc p = show $ abs $ hash (sourceName p,
                                sourceLine p,
                                sourceColumn p)
+
+infixr 9 <.>
+(<.>) :: Functor f => (a1 -> b) -> (a -> f a1) -> a -> f b
+a <.> b = fmap a . b

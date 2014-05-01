@@ -7,6 +7,9 @@ import           Control.Monad            hiding (mapM, sequence)
 import           Control.Monad.Writer     hiding (mapM, sequence)
 
 import           Data.Traversable
+import           Data.Foldable
+
+import           Pyrec.Misc
 
 import           Pyrec.IR
 import qualified Pyrec.IR.Desugar     as D
@@ -16,11 +19,42 @@ import qualified Pyrec.IR.Core        as R
 type Errors = [R.ErrorMessage]
 type RP     = Writer Errors
 
+
 report :: C.Expr -> RP R.Expr
-report = rpIdent <=< rpTypeError
+report = trim . convID . rpIdent . rpTypeError . prepare
+
+
+foldExpr :: (R.ExprWithErrors i -> Pyrec.IR.Expr D.BindT D.BindN i D.Type e -> e)
+              -> R.ExprWithErrors i -> e
+foldExpr f e@(R.EE _ _ _ inner) = f e $ foldExpr f <$> inner
+
+-- | Adds an extra field to each node to accumulate errors
+prepare :: C.Expr -> R.ExprWithErrors Id
+prepare (E l t e) = R.EE l t [] $ prepare <$> e
+
+-- | Turns nodes with errors into "bombs"
+-- | Reports errors
+trim :: R.ExprWithErrors R.Id -> RP R.Expr
+trim = foldExpr $ \(R.EE l t errors _) inner' -> case errors of
+  [] -> R.E l t <$> sequence inner'
+  _  -> do let errMsgs = fmap (\a -> (l,a)) errors
+           tell errMsgs
+           return $ R.Error $ errMsgs
+
+-- | Adds more errors to a node
+err :: R.ExprWithErrors i -> [R.Error] -> R.ExprWithErrors i
+err (R.EE l t errors expr) errors' = R.EE l t (errors ++ errors') expr
+
+-- | Updates a node with bombs
+merge :: R.ExprWithErrors ignored
+         -> Pyrec.IR.Expr D.BindT D.BindN i D.Type (R.ExprWithErrors i)
+         -> R.ExprWithErrors i
+merge (R.EE l t errors _) inner' = R.EE l t errors inner'
+
+
 
 -- | looks for shadowed identifiers
-rpShadow :: C.Expr -> RP C.Expr
+rpShadow :: R.ExprWithErrors Id -> R.ExprWithErrors Id
 rpShadow = undefined
 
 -- | looks for identifiers bound twice 'concurrently', e.g:
@@ -29,50 +63,63 @@ rpShadow = undefined
 -- |  - field names in one variant
 -- |    (redundant field names in record is impossible)
 -- | this is much more serious than 'normal' shadowing
-rpDup :: C.Expr -> RP C.Expr
+rpDup :: R.ExprWithErrors Id -> R.ExprWithErrors Id
 rpDup = undefined
 
--- need to recur on recursive types
 -- | reports type errors
-rpTypeError :: C.Expr -> RP C.Expr
-rpTypeError e@(E l t inner) = case t of
-  (D.TError     terror) -> err $ R.TypeError  terror
-  (D.PartialObj fields) -> err $ R.PartialObj fields
-  _                     -> E l t <$> mapM rpTypeError inner
-  where err error = tell [(l, error)] >> return e
+rpTypeError :: R.ExprWithErrors C.Id -> R.ExprWithErrors C.Id
+rpTypeError = foldExpr $ \e@(R.EE _ t _ _) rest ->
+  err (merge e rest) $ fmap (R.TypeError t) $ getTypeErrors t
+  where
+    getTypeErrors :: D.Type -> [R.TypeError]
+    -- | deconstructs the type, accumulating errors
+    getTypeErrors t = case t of
+      D.TUnknown          -> err $ R.AmbiguousType
+      D.PartialObj fields -> err $ R.PartialObj fields
+      D.TError     terror -> err $ R.TEEarlier  terror
+      D.T t               -> foldMap getTypeErrors t
+      where err a = [a]
 
--- | reports errors involving mutation and unbound identifiers
-rpIdent :: C.Expr -> RP R.Expr
-rpIdent (E l t e) = case e of
+rpIdent :: R.ExprWithErrors C.Id -> R.ExprWithErrors C.Id
+rpIdent = foldExpr $ \old rest ->
+  err (merge old rest) $ case rest of
+    Ident (Unbound i) -> [R.UnboundId i]
 
-  Num n -> return $ oe $ Num n
-  Str s -> return $ oe $ Str s
+    Assign i _        -> case i of
+      Bound Val l s -> [R.MutateVar l s]
+      Unbound     s -> [R.UnboundId s]
+      _             -> []
 
-  Fun bds e        -> fmap oe $ Fun bds  <$> rp e
-  Let d e          -> fmap oe $ Let      <$> mapM rp d           <*> rp e
-  Graph ds e       -> fmap oe $ Graph    <$> (mapM . mapM) rp ds <*> rp e
-  App f as         -> fmap oe $ App      <$> rp f                <*> mapM rp as
-  Try e1 bd e2     -> fmap oe $ Try      <$> rp e1
-                      <*> return bd <*> rp e2
-  Cases vt v cases -> fmap oe $ Cases vt <$> rp v <*> (mapM . mapM) rp cases
+    _                 -> []
 
-  Ident (Bound   _ il is) -> return $ oe $ Ident $ R.Bound il is
-  Ident (Unbound      is) -> err $ R.UnboundId is
 
-  Assign i v -> case i of
-    Bound Var il is -> oe <$> Assign (R.Bound il is) <$> rp v
-    Bound Val il is -> err $ R.MutateVar il is
-    Unbound      is -> err $ R.UnboundId is
+-- | converts Id type
+-- needs more boilplate cause can only derive functor for one parameter :(
+convID :: R.ExprWithErrors C.Id -> R.ExprWithErrors R.Id
+convID (R.EE l t errors e) = R.EE l t errors $ case e of
 
-  EmptyObject    -> return $ oe EmptyObject
-  Extend o fi fv -> fmap oe $ Extend <$> rp o <*> return fi <*> rp fv
-  Access o fi    -> fmap oe $ Access <$> rp o <*> return fi
+  Num n -> Num n
+  Str s -> Str s
 
---  _ -> R.E l t <$> mapM rp e -- so close....
+  Fun bds e        -> Fun bds $ r e
+  Let d e          -> Let      (fmap r d)           $ r e
+  Graph ds e       -> Graph    ((fmap . fmap) r ds) $ r e
+  App f as         -> App      (r f)                $ fmap r as
+  Try e1 bd e2     -> Try      (r e1)                 bd $  r e2
+  Cases vt v cases -> Cases vt (r v) $ (fmap . fmap) r cases
 
-  where rp = rpIdent
-        oe e = R.E l t e
+  Ident (Bound   _ il is) -> Ident $ R.Bound il is
+  Ident (Unbound      is) -> Ident $ R.Bound l is
+                             -- wrong but will be trimmed
 
-        err :: R.Error -> RP R.Expr
-        err e = tell [e'] >> (return $ R.Error e')
-          where e' = (l , e)
+  Assign i v      -> case i of
+    Bound _  il is        -> Assign (R.Bound il is) $ r v
+                             -- wrong, when val, but will be trimmed
+    Unbound     is        -> Assign (R.Bound  l is) $ r v
+                             -- wrong but will be trimmed
+
+  EmptyObject     -> EmptyObject
+  Extend o fi fv  -> Extend (r o) fi $ r fv
+  Access o fi     -> Access (r o) fi
+
+  where r = convID
