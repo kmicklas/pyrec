@@ -39,14 +39,14 @@ letStmt :: Parse Statement
 letStmt = fmap LetStmt $ Let <$> bind <* op "=" <*> expr
 
 funStmt :: Parse Statement
-funStmt = kw "fun" *> (FunStmt
-                        <$> optionMaybe typeParams
-                        <*> iden
-                        <*> params
-                        <*> optionMaybe (op "->" *> type_)
-                        <* begin
-                        <*> block
-                        <* end)
+funStmt = (kw "fun" *>) $
+            FunStmt <$> optionMaybe typeParams
+                    <*> iden
+                    <*> params
+                    <*> optionMaybe (op "->" *> type_)
+                    <* begin
+                    <*> block
+                    <* end
 
 typeParams :: Parse [Id]
 typeParams = angleNoSpace *> sepBy iden (op ",") <* op ">"
@@ -62,7 +62,17 @@ type_ = node $ TId <$> iden
 
 expr :: Parse (Node Expr)
 expr = node $ Num <$> number <|>
-              Id  <$> iden
+              Id  <$> iden <|>
+              funExpr
+
+funExpr :: Parse Expr
+funExpr = (kw "fun" *>) $
+            Fun <$> optionMaybe typeParams
+                <*> params
+                <*> optionMaybe (op "->" *> type_)
+                <* begin
+                <*> block
+                <* end
 
 begin :: Parse ()
 begin = op ":"
