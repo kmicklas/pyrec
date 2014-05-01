@@ -33,8 +33,26 @@ block :: Parse Block
 block = many stmt
 
 stmt :: Parse (Node Statement)
-stmt = node $ try (fmap LetStmt $ Let <$> bind <* op "=" <*> expr) <|>
-              (ExprStmt <$> expr)
+stmt = node $ try letStmt <|> try funStmt <|> (ExprStmt <$> expr)
+
+letStmt :: Parse Statement
+letStmt = fmap LetStmt $ Let <$> bind <* op "=" <*> expr
+
+funStmt :: Parse Statement
+funStmt = kw "fun" *> (FunStmt
+                        <$> optionMaybe typeParams
+                        <*> iden
+                        <*> params
+                        <*> optionMaybe (op "->" *> type_)
+                        <* begin
+                        <*> block
+                        <* end)
+
+typeParams :: Parse [Id]
+typeParams = angleNoSpace *> sepBy iden (op ",") <* op ">"
+
+params :: Parse [Bind]
+params = parenNoSpace *> sepBy bind (op ",") <* op ")"
 
 bind :: Parse Bind
 bind = Bind <$> iden <* op "::" <*> optionMaybe type_
@@ -45,6 +63,12 @@ type_ = node $ TId <$> iden
 expr :: Parse (Node Expr)
 expr = node $ Num <$> number <|>
               Id  <$> iden
+
+begin :: Parse ()
+begin = op ":"
+
+end :: Parse ()
+end = kw "end" <|> op ";"
 
 none :: Parse ()
 none = return ()
@@ -58,7 +82,7 @@ number :: Parse Double
 number = tok "number" $ read <$> many1 digit
 
 iden :: Parse Id
-iden = tok "identifier" $ node $
+iden = tok "identifier" $ node $ try $
          do word <- (:) <$> idenStart <*> many idenChar
                         <* notFollowedBy idenChar
             if elem word keywords then parserZero else return word
@@ -105,14 +129,20 @@ endToken = skipMany $ ((space >> none) <|>
 tok :: String -> Parse a -> Parse a
 tok name p = lookAhead p *> putState False *> p <* endToken <?> name
 
-parenSpace :: Bool -> Parse ()
-parenSpace s = do afterSpace <- getState
-                  if s == afterSpace
-                  then char '(' >> putState False
-                  else parserZero
+opSpace :: Char -> Bool -> Parse ()
+opSpace c s = do afterSpace <- getState
+                 if s == afterSpace
+                 then char c >> putState False
+                 else parserZero
 
-parenWithSpace = parenSpace True
-parenNoSpace = parenSpace False
+parenWithSpace = opSpace '(' True
+parenNoSpace = opSpace '(' False
+
+angleWithSpace = opSpace '<' True
+angleNoSpace = opSpace '<' False
 
 paren :: Parse ()
 paren = char '(' >> putState False >> endToken
+
+angle :: Parse ()
+angle = char '<' >> putState False >> endToken

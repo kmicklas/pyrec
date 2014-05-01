@@ -41,6 +41,7 @@ data Statement
   = ExprStmt (Node Expr)
   | LetStmt Let
   | Graph Block
+  | FunStmt (Maybe [Id]) Id [Bind] (Maybe (Node Type)) Block
   | Data Id (Maybe [Id]) [Variant]
   deriving (Eq, Show, Ord)
 
@@ -54,9 +55,11 @@ data Let
 
 data Type
   = TId Id
+  | TFun [Type] Type
   deriving (Eq, Show, Ord)
 
 data Expr
   = Num Double
   | Id Id
+  | Fun (Maybe [Id]) [Bind] (Maybe (Node Type)) Block
   deriving (Eq, Show, Ord)
