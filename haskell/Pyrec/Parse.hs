@@ -36,6 +36,7 @@ stmt :: Parse (Node Statement)
 stmt = node $ try letStmt
           <|> try varStmt
           <|> try funStmt
+          <|> try assignStmt
           <|> (ExprStmt <$> expr)
 
 letStmt :: Parse Statement
@@ -46,6 +47,9 @@ varStmt = kw "var" *> (VarStmt <$> letBind)
 
 letBind :: Parse Let
 letBind = Let <$> bind <* op "=" <*> expr
+
+assignStmt :: Parse Statement
+assignStmt = AssignStmt <$> iden <* op ":=" <*> expr
 
 funStmt :: Parse Statement
 funStmt = (kw "fun" *>) $

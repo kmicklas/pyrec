@@ -41,6 +41,7 @@ data Statement
   = ExprStmt (Node Expr)
   | LetStmt Let
   | VarStmt Let
+  | AssignStmt Id (Node Expr)
   | Graph Block
   | FunStmt (Maybe [Id]) Id [Bind] (Maybe (Node Type)) Block
   | Data Id (Maybe [Id]) [Variant]
