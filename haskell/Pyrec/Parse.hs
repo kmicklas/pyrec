@@ -68,7 +68,7 @@ expr = node $ Num <$> number <|>
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
             Fun <$> optionMaybe typeParams
-                <*> params
+                <*> optionMaybe params
                 <*> optionMaybe (op "->" *> type_)
                 <* begin
                 <*> block

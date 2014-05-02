@@ -61,5 +61,9 @@ data Type
 data Expr
   = Num Double
   | Id Id
-  | Fun (Maybe [Id]) [Bind] (Maybe (Node Type)) Block
+
+  | Fun (Maybe [Id]) (Maybe [Bind]) (Maybe (Node Type)) Block
+  | Block Block
+
+  | TypeConstraint (Node Expr) (Node Type)
   deriving (Eq, Show, Ord)
