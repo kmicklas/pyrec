@@ -1,13 +1,16 @@
-{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 
 module Pyrec.AST where
 -- The AST after parsing
+
+import Data.Foldable
+import Data.Traversable
 
 import Text.Parsec.Pos
 
 data Node a
   = Node SourcePos a
-  deriving (Eq, Show, Ord, Functor)
+  deriving (Eq, Show, Ord, Functor, Foldable, Traversable)
 
 type Id = Node String
 
