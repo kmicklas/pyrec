@@ -6,6 +6,8 @@ module Pyrec.IR where
 import Data.Foldable
 import Data.Traversable
 import Data.Map (Map)
+import Data.List
+import Control.Applicative
 
 type FieldName = String
 
@@ -47,7 +49,17 @@ data Type bn id ty
   | TType -- not used in System F, but useful for errors now and future extensions later...
 
   | TObject (Map FieldName ty)
-  deriving (Eq, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Functor, Foldable, Traversable)
+
+instance (Show bn, Show id, Show ty) => Show (Type bn id ty) where
+  show TNum = "Number"
+  show TStr = "String"
+  show (TIdent id) = show id
+  show (TFun params r) = "(" ++ intercalate ", " (show <$> params) ++ ")" ++
+                         " -> " ++ show r
+  show (TParam params r) = "<" ++ intercalate ", " (show <$> params) ++ ">" ++
+                           " " ++ show r
+  show TType = "Type"
 
 data Kind
   = KType

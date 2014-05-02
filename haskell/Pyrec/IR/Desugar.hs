@@ -23,7 +23,13 @@ data Type
   | TUnknown
   | PartialObj (Map IR.FieldName Type)
   | TError TypeError
-  deriving (Eq, Show)
+  deriving (Eq)
+
+instance Show Type where
+  show (T t)               = show t
+  show TUnknown            = "?"
+  show (PartialObj fields) = "Object" -- TODO
+  show (TError e)          = show e
 
 -- the type checking algorithm insists we use
 -- the same Type adt before and after checking
