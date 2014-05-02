@@ -61,7 +61,7 @@ typeParams :: Parse [Id]
 typeParams = angleNoSpace *> sepBy iden (op ",") <* op ">"
 
 params :: Parse [Bind]
-params = parenNoSpace *> sepBy bind (op ",") <* op ")"
+params = parenNoSpace *> sepBy bind (op ",") <* closeParen
 
 bind :: Parse Bind
 bind = Bind <$> iden <*> optionMaybe (op "::" *> type_)
@@ -70,9 +70,21 @@ type_ :: Parse (Node Type)
 type_ = node $ TId <$> iden
 
 expr :: Parse (Node Expr)
-expr = node $ Num <$> number <|>
-              Id  <$> iden <|>
-              funExpr
+expr = appVal
+
+appVal :: Parse (Node Expr)
+appVal = do vn@(Node p v) <- val
+            foldl (combine p) vn <$> many args
+  where combine p f (Right vargs) = Node p $ App  f vargs
+        combine p f (Left  targs) = Node p $ TApp f targs
+        args = vapp <|> tapp
+        vapp = Right <$> (parenNoSpace *> sepBy expr  (op ",") <* closeParen)
+        tapp = Left  <$> (angleNoSpace *> sepBy type_ (op ",") <* closeAngle)
+
+val :: Parse (Node Expr)
+val = node $ Num <$> number <|>
+             Id  <$> iden <|>
+             funExpr
 
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
@@ -161,8 +173,10 @@ parenNoSpace = opSpace '(' False
 angleWithSpace = opSpace '<' True
 angleNoSpace = opSpace '<' False
 
-paren :: Parse ()
-paren = char '(' >> putState False >> endToken
+bracket :: Char -> Parse ()
+bracket c = char c >> putState False >> endToken
 
-angle :: Parse ()
-angle = char '<' >> putState False >> endToken
+openParen  = bracket '('
+closeParen = bracket ')'
+openAngle  = bracket '<'
+closeAngle = bracket '>'

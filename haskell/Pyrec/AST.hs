@@ -63,6 +63,9 @@ data Expr
   = Num Double
   | Id Id
 
+  | App  (Node Expr) [Node Expr]
+  | TApp (Node Expr) [Node Type]
+
   | Fun (Maybe [Id]) (Maybe [Bind]) (Maybe (Node Type)) Block
   | Block Block
 
