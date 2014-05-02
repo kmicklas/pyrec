@@ -103,27 +103,29 @@ dmn q = Node (newPos "derp-dummy" 0 0) q
 
 mkFunctions ::
   forall bt bn id ty ex
-  .  (                                     (ty -> Type)                  -> bt -> Bind)
-  -> (                                                                      bn -> Id)
-  -> (                                                                      id -> Id)
-  -> ((IR.Type bn id ty       -> Type)  -> (ex -> Expr) -> (ex -> Block) -> ty -> Type)
-  -> ((IR.Expr bt bn id ty ex -> Expr)  -> (ty -> Type) -> (ex -> Block) -> ex -> Expr)
-  -> ((IR.Expr bt bn id ty ex -> Block) -> (ty -> Type) -> (ex -> Expr)  -> ex -> Block)
+  .  ((bt -> Bind)                                       -> (ty -> Type)                  -> bt -> Bind)
+  -> ((bn -> Id)                                                                          -> bn -> Id)
+  -> ((id -> Id)                                                                          -> id -> Id)
+  -> ((ty -> Type)  -> (IR.Type bn id ty       -> Type)  -> (ex -> Expr) -> (ex -> Block) -> ty -> Type)
+  -> ((ex -> Expr)  -> (IR.Expr bt bn id ty ex -> Expr)  -> (ty -> Type) -> (ex -> Block) -> ex -> Expr)
+  -> ((ex -> Block) -> (IR.Expr bt bn id ty ex -> Block) -> (ty -> Type) -> (ex -> Expr)  -> ex -> Block)
   -> ( ex -> Expr, ex -> Block, ty -> Type)
 mkFunctions bt bn id ty ex bl = (ex', bl', ty')
   where
-    bt' = bt ty'
-    ty' = ty resugarT ex' bl'
-    ex' = ex resugarE ty' bl'
-    bl' = bl resugarB ty' ex'
+    bt' = bt   bt'  ty'
+    bn' = bn   bn'
+    id' = id   id'
+    ty' = ty   ty'  resugarT ex' bl'
+    ex' = ex   ex'  resugarE ty' bl'
+    bl' = bl   bl'  resugarB ty' ex'
 
     resugarE :: IR.Expr bt bn id ty ex -> Expr
     resugarE e = case e of
       (IR.Num n)     -> Num n
       (IR.Str s)     -> Str s
-      (IR.Ident i)   -> Ident $ id i
-      (IR.Fun  bs e) -> Fun Nothing            (Just $ bt' <$> bs) Nothing $ bl' e
-      (IR.FunT bs e) -> Fun (Just $ bn <$> bs) Nothing             Nothing $ bl' e
+      (IR.Ident i)   -> Ident $ id' i
+      (IR.Fun  bs e) -> Fun Nothing             (Just $ bt' <$> bs) Nothing $ bl' e
+      (IR.FunT bs e) -> Fun (Just $ bn' <$> bs) Nothing             Nothing $ bl' e
 
       (IR.App  f args) -> App  (dmn $ ex' f) $ dmn <$> ex' <$> args
       (IR.AppT f args) -> AppT (dmn $ ex' f) $ dmn <$> ty' <$> args
@@ -143,25 +145,25 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
     resugarB e = case e of
       (IR.Let d r)       -> convDecl d                         : bl' r
       (IR.Graph decls r) -> (dmn $ Graph $ convDecl <$> decls) : bl' r
-      (IR.Assign i e)    -> [dmn $ AssignStmt (id i) $ dmn $ ex' e]
+      (IR.Assign i e)    -> [dmn $ AssignStmt (id' i) $ dmn $ ex' e]
 
       _                  -> [dmn $ ExprStmt $ dmn $ resugarE e]
 
     convDecl :: IR.Decl bt bn ex -> Node Statement
     convDecl d = dmn $ case d of
-      (IR.Data b vs)   -> Data (bn b) Nothing $ variants <$> vs
+      (IR.Data b vs)   -> Data (bn' b) Nothing $ variants <$> vs
       (IR.Def  dt b v) -> k $ Let (bt' b) (dmn $ ex' v)
         where k = case dt of IR.Val -> LetStmt
                              IR.Var -> VarStmt
 
     variants :: IR.Variant bt bn -> Variant
-    variants (IR.Variant b ps) = Variant (bn b) $ bt' <$> fromMaybe [] ps
+    variants (IR.Variant b ps) = Variant (bn' b) $ bt' <$> fromMaybe [] ps
 
     resugarT :: IR.Type bn id ty -> Type
     resugarT t = case t of
-      (IR.TIdent i)          -> TIdent $ id i
+      (IR.TIdent i)          -> TIdent $ id' i
       (IR.TFun   types  ret) -> TFun   (ty' <$> types)  $ ty' ret
-      (IR.TParam params ret) -> TParam (bn  <$> params) $ ty' ret
+      (IR.TParam params ret) -> TParam (bn'  <$> params) $ ty' ret
 
       (IR.TType)             -> TIdent $ dmn "__TYPE"
 
@@ -174,97 +176,88 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
 
 (convDE, convDB, convDT) =
   mkFunctions
-    (\cT       (D.BT l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
-    (\         (D.BN l i)   -> Node l i)
-    (\         i            -> dmn i)
-    (\qT cE cB (D.T t)      -> qT t)
-    (\qE cT cB e            -> case e of
+    (\_  cT       (D.BT l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
+    (\_           (D.BN l i)   -> Node l i)
+    (\_           i            -> dmn i)
+    (\_  qT _  _  (D.T t)      -> qT t)
+    (\cE qE cT _  e            -> case e of
         (D.E _ D.TUnknown e) -> qE e
-        (D.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t)
-    (\qB cT cE (D.E _ _ e)  -> qB e)
+        (D.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t
+        (D.Constraint _ t e) -> TypeConstraint (dmn $ cE e) $ dmn $ cT t)
+    (\_  qB _  _  (D.E _ _ e)  -> qB e)
 
 instance Show D.Expr where show = show . convDB
 instance Show D.Type where show = show . convDT
 
 (convCE, convCB, _) =
   mkFunctions
-    (\cT       (D.BT l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
-    (\         (D.BN l i)   -> Node l i)
-    (\         i            -> dmn $ C.getId i)
-    (\_  _  _  t            -> convDT t) -- D.T uses D.Id, for better or worse
-    (\qE cT cB e            -> case e of
+    (\_  _        (D.BT l i t) -> Bind (Node l i) $ Just $ dmn $ convDT t)
+    (\_           (D.BN l i)   -> Node l i)
+    (\_           i            -> dmn $ C.getId i)
+    (\_  _  _  _  t            -> convDT t) -- D.T uses D.Id, for better or worse
+    (\_  qE _  _  e            -> case e of
         (C.E _ D.TUnknown e) -> qE e
-        (C.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t)
-    (\qB cT cE (C.E _ _ e)  -> qB e)
+        (C.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t)
+    (\_  qB _  _  (C.E _ _ e)  -> qB e)
 
 instance Show C.Expr where show = show . convCB
 
 (convRE, convRB, _) =
   mkFunctions
-    (\cT       (D.BT    l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
-    (\         (D.BN    l i)   -> Node l i)
-    (\         (R.Bound l i)   -> Node l i)
-    (\_  _  _  t               -> convDT t) -- D.T uses D.Id, for better or worse
-    (\qE cT cB e               -> case e of
+    (\_  _        (D.BT    l i t) -> Bind (Node l i) $ Just $ dmn $ convDT t)
+    (\_           (D.BN    l i)   -> Node l i)
+    (\_           (R.Bound l i)   -> Node l i)
+    (\_  _  _  _  t               -> convDT t) -- D.T uses D.Id, for better or worse
+    (\_  qE _  _  e               -> case e of
         (R.E _ D.TUnknown e) -> qE e
-        (R.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t)
-    (\qB cT cE (R.E _ _ e)     -> qB e)
+        (R.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t
+        (R.Error          _) -> Ident $ dmn "__BOMB")
+    (\_  qB _  _  (R.E _ _ e)     -> qB e)
 
 instance Show R.Expr where show = show . convRB
 
+
+
+
+
 {-
-instance (Show bt, Show bn, Show id, Show ty, Show ex) => Show (Type bn id ty) where
-  show e = case e of
-
-    (Ident id)   -> show
-
-instance (Show bn, Show id, Show ty) => Show (Type bn id ty) where
+instance Show D.Type where
   show t = case t of
-    (TIdent id)       -> show id
-    (TFun params r)   -> "(" ++ intercalate ", " (show <$> params) ++ ")" ++
-                         " -> " ++ show r
-    (TParam params r) -> "<" ++ intercalate ", " (show <$> params) ++ ">" ++
-                         " " ++ show r
-    TType             -> "Type"
-
-instance Show Type where
-  show t = case t of
-    (T t)               -> show t
-    TUnknown            -> "?"
-    (PartialObj fields) -> "{" ++ (intercalate ", " $ map f $ M.toList fields) ++ "}"
+    (D.T t)               -> show t
+    D.TUnknown            -> "?"
+    (D.PartialObj fields) -> "{" ++ (intercalate ", " $ map f $ M.toList fields) ++ "}"
       where f (k,v) = show k ++ " : " ++ show v
-    (TError e)          -> show e
-
-instance Show TypeError where
-  show e = case e of
-    TypeMismatch exp got -> "Expected " ++ show exp ++ ", got " ++ show got
-    CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ show ty
-
-instance Show Error where
-  show e = case e of
-    EndBlockWithDef    -> "The last element in a block must be an expression"
-    SameLineStatements -> "Two statements should never be put on the same line"
-
-instance Show Error where
-  show e = case e of
-    Earlier    error     -> show error
-
-    UnboundId  ident     -> show ident ++ " is unbound"
-    MutateVar  loc ident -> "cannot mutate non-variable " ++ ident ++ ", bound at " ++ show loc
-
-    DupIdent dt loc iden -> sentance1 ++ " one of them is bound at " ++ show loc ++ "."
-      where sentance1 = case dt of
-              Pattern -> "pattern binds multiple identifiers named " ++ show iden ++ "."
-              Constr  -> "type has multiple variants named "         ++ show iden ++ "."
-              Graph   -> "graph has multiple declerations named "    ++ show iden ++ "."
-
-    TypeError ty err -> show err ++ " in " ++ show ty
-
-instance Show TypeError where
-  show error = case error of
-    TEEarlier terror    -> show terror
-
-    AmbiguousType        -> "ambiguous type ecountered"
-    PartialObj fields    -> "ambiguous object type encountered with fields " ++ show fields
-
+    (D.TError e)          -> show e
 -}
+
+instance Show D.TypeError where
+  show e = case e of
+    D.TypeMismatch exp got -> "Expected " ++ show exp ++ ", got " ++ show got
+    D.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ show ty
+
+instance Show D.Error where
+  show e = case e of
+    D.EndBlockWithDef    -> "The last element in a block must be an expression"
+    D.SameLineStatements -> "Two statements should never be put on the same line"
+
+instance Show R.Error where
+  show e = case e of
+    R.Earlier    error     -> show error
+
+    R.UnboundId  ident     -> show ident ++ " is unbound"
+    R.MutateVar  loc ident -> "cannot mutate non-variable " ++ ident ++ ", bound at " ++ show loc
+
+    R.DupIdent dt loc iden -> sentance1 ++ " one of them is bound at " ++ show loc ++ "."
+      where sentance1 = case dt of
+              R.Pattern -> "pattern binds multiple identifiers named " ++ show iden ++ "."
+              R.Constr  -> "type has multiple variants named "         ++ show iden ++ "."
+              R.Graph   -> "graph has multiple declerations named "    ++ show iden ++ "."
+
+    R.TypeError ty err -> show err ++ " in " ++ show ty
+
+instance Show R.TypeError where
+  show error = case error of
+    R.TEEarlier terror    -> show terror
+
+    R.AmbiguousType        -> "ambiguous type ecountered"
+    R.PartialObj fields    -> "ambiguous object type encountered with fields " ++ show fields
