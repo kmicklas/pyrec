@@ -41,8 +41,8 @@ fixType env (D.E l et e) t = tc env $ D.E l (unify env t et) e
 tc :: Env -> D.Expr -> C.Expr
 tc env (D.E l t e) = case e of
 
-  Num n -> se (unify env t $ D.T TNum) $ Num n
-  Str s -> se (unify env t $ D.T TStr) $ Str s
+  Num n -> se (unify env t $ D.T $ TIdent "Number") $ Num n
+  Str s -> se (unify env t $ D.T $ TIdent "String") $ Str s
 
   Ident i -> case M.lookup i env of
     Nothing -> se t $ Ident $ C.Unbound i
@@ -238,9 +238,6 @@ unify env t1 t2 = unifyWithSubsts env M.empty t1 t2
 -- expected then got
 unifyWithSubsts :: Env -> Map Id Id -> D.Type -> D.Type -> D.Type
 unifyWithSubsts env substs a b = case (a, b) of
-  (D.T TNum,   D.T TNum)   -> D.T TNum
-  (D.T TStr,   D.T TStr)   -> D.T TStr
-
   (D.T (TIdent a), D.T (TIdent b)) ->
     try $ D.T <$> do
       a' <- M.lookup a substs

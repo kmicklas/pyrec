@@ -57,7 +57,7 @@ convMaybeType t = case t of
 
 convExpr :: Node Expr -> DS D.Expr
 convExpr (Node p e) = case e of
-  Num n          -> return $ mkT IR.TNum $ IR.Num n
+  Num n          -> return $ mkT (IR.TIdent "Number") $ IR.Num n
   Id (Node _ id) -> return $ mkU $ IR.Ident id
 
   Fun Nothing Nothing Nothing     body -> convBlock $ body

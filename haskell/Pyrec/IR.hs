@@ -40,9 +40,7 @@ data Expr
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Type bn id ty
-  = TNum
-  | TStr
-  | TIdent id
+  = TIdent id
   | TFun [ty] ty   -- (A, B, C) -> R
   | TParam [bn] ty -- <A, B, C> -> T
 
@@ -82,8 +80,6 @@ data Variant bt bn
 
 instance (Show bn, Show id, Show ty) => Show (Type bn id ty) where
   show t = case t of
-    TNum              -> "Number"
-    TStr              -> "String"
     (TIdent id)       -> show id
     (TFun params r)   -> "(" ++ intercalate ", " (show <$> params) ++ ")" ++
                          " -> " ++ show r
