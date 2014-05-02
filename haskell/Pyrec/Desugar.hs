@@ -47,7 +47,8 @@ convBN :: Id -> DS D.BindN
 convBN (Node p i) = return $ D.BN p i
 
 convType :: Node Type -> DS D.Type
-convType = undefined
+convType (Node p t) = case t of
+  TId id@(Node _ name) -> return $ D.T $ IR.TIdent name
 
 convMaybeType :: Maybe (Node Type) -> DS D.Type
 convMaybeType t = case t of
