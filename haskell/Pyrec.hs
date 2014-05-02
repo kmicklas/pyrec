@@ -41,9 +41,10 @@ parseEmit foreignEnv =
    (mapWriter $ fmap . fmap . fmap $ R.Earlier)) <.> parseDesugar
 
 
-testInfer :: C.Env -> String
-             -> Either ParseError
-             (Bool, R.Expr, R.Expr, [R.ErrorMessage], [R.ErrorMessage], [R.ErrorMessage])
+testInfer :: C.Env -> String -> Either ParseError (Bool, R.Expr, R.Expr,
+                                                   [R.ErrorMessage],
+                                                   [R.ErrorMessage],
+                                                   [R.ErrorMessage])
 testInfer env src = for desugared $ \(e1, errors) -> let
   errors'    = (fmap . fmap) R.Earlier errors
   (e1', e1r) = runWriter $ checkReport env e1
