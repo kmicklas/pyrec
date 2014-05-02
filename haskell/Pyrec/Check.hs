@@ -7,7 +7,6 @@ import           Prelude                 hiding (mapM, sequence)
 import           Control.Applicative
 import           Control.Monad           hiding (mapM, sequence)
 import           Control.Monad.Reader    hiding (mapM, sequence)
-import           Control.Monad.State     hiding (mapM, sequence)
 
 import           Data.List                      (foldl', find)
 import qualified Data.Map          as M
@@ -209,28 +208,18 @@ tc env (D.E l t e) = case e of
   where se = C.E l
 
 
+stripBN (BN _ n) = n
+
 subst :: Map Id D.Type -> D.Type -> D.Type
-subst = substGeneric () $ \substs params ->
-  return $ foldl' (flip M.delete) substs $ for params $ \ (BN _ n) -> n
-
-normalizeT :: D.Type -> D.Type
-normalizeT = flip (substGeneric 0) M.empty $ \substs params ->
-  do count <- get
-     put $ count + length params
-     return $ foldl' (\o (k,v) -> M.insert k v o) substs $ zipWith f params [count..]
-  where f (BN _ i) n = (i, D.T $ TIdent $ "__P" ++ show n)
-
-substGeneric :: state -> (Map Id D.Type -> [BindN] -> State state (Map Id D.Type))
-                -> Map Id D.Type -> D.Type -> D.Type
-substGeneric s f substs t = case t of
+subst substs t = case t of
   D.T (TIdent id)          -> fromMaybe t $ M.lookup id substs
-  D.T (TParam params retT) -> D.T $ TParam params $ recur s' substs' retT
-    where (substs', s') = runState (f substs params) s
-  D.T inner                -> D.T        $ recur s substs <$> inner
-  PartialObj fields        -> PartialObj $ recur s substs <$> fields
+  D.T (TParam params retT) -> D.T $ TParam params $ recur substs' retT
+    where substs' = foldl' (flip M.delete) substs $ stripBN <$> params
+  D.T inner                -> D.T        $ recur substs <$> inner
+  PartialObj fields        -> PartialObj $ recur substs <$> fields
   TError _                 -> t
   TUnknown                 -> t -- redundancy to future-proof
-  where recur s' = substGeneric s' f
+  where recur s' = subst s'
 
 checkT :: Env -> D.Type -> D.Type
 checkT env t = case t of
@@ -243,23 +232,31 @@ checkT env t = case t of
   TError _                 -> t
   TUnknown                 -> t -- redundancy to future-proof
 
-
 unify :: Env -> D.Type -> D.Type -> D.Type
-unify env a b = unifyAfterSubst env (normalizeT a) (normalizeT b)
+unify env t1 t2 = unifyWithSubsts env M.empty t1 t2
 
 -- expected then got
-unifyAfterSubst :: Env -> D.Type -> D.Type -> D.Type
-unifyAfterSubst env a b = case (a, b) of
+unifyWithSubsts :: Env -> Map Id Id -> D.Type -> D.Type -> D.Type
+unifyWithSubsts env substs a b = case (a, b) of
   (D.T TNum,   D.T TNum)   -> D.T TNum
   (D.T TStr,   D.T TStr)   -> D.T TStr
 
-  (D.T (TIdent _), D.T (TIdent _)) ->
-    if a == b then a else try Nothing
+  (D.T (TIdent a), D.T (TIdent b)) ->
+    try $ D.T <$> do
+      a' <- M.lookup a substs
+      guard $ a' == b
+      return $ TIdent a
 
   (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) ->
     try $ D.T <$> do
       params <- map2S recur aParams bParams
       return $ TFun params $ recur aRes bRes
+
+  (D.T (TParam aParams aRes), D.T (TParam bParams bRes)) ->
+    try $ D.T <$> do
+      news <- map2S (,) (stripBN <$> aParams) $ stripBN <$> bParams
+      let substs' = extendMap substs $ M.fromList news
+      return $ TParam aParams $ unifyWithSubsts env substs' aRes bRes
 
   ((D.T (TObject o1)), (D.T (TObject o2))) ->
     try $ D.T <$> TObject <$> do
@@ -282,7 +279,7 @@ unifyAfterSubst env a b = case (a, b) of
   (error@(TError _), t)    -> TError $ TypeMismatch error t
   (_,          _)          -> TError $ TypeMismatch a b
 
-  where recur = unifyAfterSubst env
+  where recur = unifyWithSubsts env substs
         try :: Maybe D.Type -> D.Type
         try t = case t of
           Just t  -> t
