@@ -15,11 +15,11 @@ type Loc = SourcePos
 
 data BindT
   = BT Loc String Type
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data BindN
   = BN Loc String
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Type
   = T (IR.Type BindN Id Type)

@@ -14,17 +14,17 @@ import qualified Pyrec.IR.Check   as C
 
 data Id
   = Bound Loc String
-  deriving (Eq, Show)
+  deriving (Eq)
 
 -- | We use this to find errors in dead code too
 data ExprWithErrors i
   = EE Loc Type [Error] (IR.Expr BindT BindN i Type (ExprWithErrors i))
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Expr
   = E Loc Type (IR.Expr BindT BindN Id Type Expr)
   | Error [ErrorMessage]
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data DupType
   = Graph
