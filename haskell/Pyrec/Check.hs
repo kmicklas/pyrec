@@ -26,8 +26,14 @@ type Entry   = Decl D.BindT D.BindN ()
 type Env     = Map Id Entry
 type CK      = Reader Env
 
+extendMap :: Map Id a -> Map Id a -> Map Id a
+extendMap = flip M.union
+
 emptyEnv :: Env
 emptyEnv = M.empty
+
+bindTParams :: BindN -> (Id, Entry)
+bindTParams (BN l i) = (i, Def Val (BT l i $ D.T TType) ())
 
 fixType :: Env -> D.Expr -> D.Type -> C.Expr
 fixType env (D.E l et e) t = tc env $ D.E l (unify env t et) e
@@ -70,7 +76,7 @@ tc env (D.E l t e) = case e of
                     Nothing     -> id
                     Just params -> TFun (for params $ \(BT _ _ t) -> t) . T
 
-          env'             = M.union (M.fromList $ (bi, envData) : fmap bindConstrs variants') env
+          env'             = extendMap env $ M.fromList $ (bi, envData) : fmap bindConstrs variants'
           e'@(C.E _ t'  _) = fixType env' e t
 
           data'            = Data i variants'
@@ -86,34 +92,33 @@ tc env (D.E l t e) = case e of
   Fun params body -> se t' $ Fun params' body'
     where params'                 = for params $ \(BT l i t) -> BT l i $ checkT env t
           bindParams b@(BT _ i _) = (i, Def Val b ())
-          env'                    = M.union (M.fromList $ bindParams <$> params') env
+          env'                    = extendMap env $ M.fromList $ bindParams <$> params'
           body'@(C.E _ retT _)    = tc env' body
           t'                      = unify env t $ D.T
                                     $ TFun (for params' $ \(BT _ _ pt) -> pt) retT
 
   FunT params body -> se t' $ FunT params body'
-    where bindParams (BN l i)     = (i, Def Val (BT l i $ D.T TType) ())
-          env'                    = M.union (M.fromList $ bindParams <$> params) env
+    where env'                    = extendMap env $ M.fromList $ bindTParams <$> params
           body'@(C.E _ retT _)    = tc env' body
           t'                      = unify env t $ D.T $ TParam params retT
 
   App f args -> se t' $ App f' args'
-    where args' = tc env <$> args
-          ft = D.T $ TFun (for args' $ \ (C.E _ t _) -> t) t
-          f'@(C.E _ ft' _) = fixType env f ft
-          t' = case ft' of
+    where args'                   = tc env <$> args
+          ft                      = D.T $ TFun (for args' $ \ (C.E _ t _) -> t) t
+          f'@(C.E _ ft' _)        = fixType env f ft
+          t'                      = case ft' of
             D.T (TFun _ retT) -> retT
             _                 -> D.TError $ D.TypeMismatch ft ft'
 
   AppT f args -> se t' $ AppT f' args
-    where (C.E fl ft fe) = tc env f
-          expected = D.T $ TParam (for [1..length args] $ \ n -> BN fl $ 'T' : show n) t
-          (t', ft') = case ft of
+    where (C.E fl ft fe)          = tc env f
+          expected                = D.T $ TParam (for [1..length args] $ \ n -> BN fl $ 'T' : show n) t
+          (t', ft')               = case ft of
             D.T (TParam params retT) -> (,ft) $ case map2S (,) params $ checkT env <$> args of
               Just substs -> unify env t $ foldr subst retT substs
               Nothing     -> TError $ TypeMismatch t retT
             _                        -> (ft, TError $ TypeMismatch expected ft)
-          f' = C.E fl ft' fe
+          f'                      = C.E fl ft' fe
 
   Cases vt v cases -> se t'' $ Cases vt' v' cases'
     where v'@(C.E _ vt' _) = fixType env v vt
@@ -177,7 +182,7 @@ tc env (D.E l t e) = case e of
           ot                 = case t of
             D.T (TObject o)   -> D.T $ TObject $ trim o
             D.PartialObj p    -> D.PartialObj  $ trim p
-            _                 -> D.PartialObj $ M.empty
+            _                 -> D.PartialObj  $ M.empty
           trim map           = M.delete fi map
 
           obj'@(C.E _ ot' _) = fixType env obj ot
@@ -200,21 +205,26 @@ tc env (D.E l t e) = case e of
   where se = C.E l
 
 subst :: (BindN, D.Type) -> D.Type -> D.Type
-subst s@(param@(BN _ name), arg) t = case t of
+subst s@((BN _ name), arg) t = case t of
   D.T (TIdent id)          -> if name == id then arg else t
   D.T (TParam params retT) -> if elem name $ for params $ \ (BN _ n) -> n
                               then t
                               else D.T $ TParam params $ subst s retT
   D.T inner                -> D.T        $ subst s <$> inner
   PartialObj fields        -> PartialObj $ subst s <$> fields
-  _                        -> t
+  TError _                 -> t
+  TUnknown                 -> t -- redundancy to future-proof
 
 checkT :: Env -> D.Type -> D.Type
 checkT env t = case t of
-  TUnknown            -> TUnknown
-  D.T TNum            -> t
-  D.T TStr            -> t
-  D.T (TFun args res) -> D.T $ TFun (checkT env <$> args) res
+  D.T (TIdent i)          -> case M.lookup i env of
+    Just (Def Val (BT _ _ (D.T TType)) _) -> t
+    _                                     -> error "unbound, or non-type identifier"
+  D.T (TParam params retT) -> flip checkT retT $ extendMap env $ M.fromList $ bindTParams <$> params
+  D.T inner                -> D.T        $ checkT env <$> inner
+  PartialObj fields        -> PartialObj $ checkT env <$> fields
+  TError _                 -> t
+  TUnknown                 -> t -- redundancy to future-proof
 
 -- expected then got
 unify :: Env -> D.Type -> D.Type -> D.Type
@@ -235,7 +245,7 @@ unify env a b = case (a, b) of
       return match
 
   (l@(D.T (TObject _)), r@(D.PartialObj _)) ->
-    recur r l                                    -- generative recursion
+    recur r l                                    -- flip args and recur
   (D.PartialObj p, D.T (TObject o)) ->
     try $ D.T <$> TObject <$> do
       guard $ M.isSubmapOfBy (\_ _ -> True) p o  -- is partial subset
@@ -245,7 +255,7 @@ unify env a b = case (a, b) of
   (D.TUnknown, other)      -> checkT env other
   (other,      D.TUnknown) -> checkT env other
 
-  (_,          _)          -> TError $ TypeMismatch a b
+--  (_,          _)          -> TError $ TypeMismatch a b
 
   where recur = unify env
         try :: Maybe D.Type -> D.Type
