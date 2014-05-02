@@ -28,7 +28,7 @@ emptyEnv :: Env
 emptyEnv = M.empty
 
 fixType :: Env -> D.Expr -> D.Type -> C.Expr
-fixType env (D.E l et e) t = tc env $ D.E l (unify env et t) e
+fixType env (D.E l et e) t = tc env $ D.E l (unify env t et) e
 
 tc :: Env -> D.Expr -> C.Expr
 tc env (D.E l t e) = case e of
@@ -52,15 +52,15 @@ tc env (D.E l t e) = case e of
           e'@(C.E _ t'  _) = fixType env' e t
 
   Let (Data i@(BN _ bi) variants) e -> se t' $ Let data' e'
-    where envData         :: Entry -- phantom ex type parameter nessesitates rebuild
-          envData          = Data i variants
+    where envData :: Entry -- phantom ex type parameter nessesitates rebuild
+          envData = Data i variants
 
           fixVar :: Variant D.BindT BindN -> Variant D.BindT BindN
-          fixVar (Variant vi args) = Variant vi $ fmap fmap fmap fixField args
+          fixVar (Variant vi args) = Variant vi $ (fmap . fmap) fixField args
             where fixField :: D.BindT -> D.BindT
                   fixField (BT bl bi t) = BT bl bi $ checkT (M.insert bi envData env) t
 
-          variants'        = fixVar <$> variants
+          variants' = fixVar <$> variants
 
           bindConstrs :: Variant D.BindT BindN -> (Id , Entry)
           bindConstrs (Variant (BN vl vi) ps) = (vi, Def Val (BT vl vi $ T $ k $ TIdent vi) ())
@@ -73,7 +73,7 @@ tc env (D.E l t e) = case e of
 
           data'            = Data i variants'
 
-  Assign i v -> se t'' $ Assign i' v' -- immutability errors caught downstream
+  Assign i v -> se t'' $ Assign i' v' -- immutability errors caught downstream in Pyrec.Report
      where (i', t') = case M.lookup i env of
              Nothing                     -> (C.Unbound     i , t)
              Just (Def dt (BT l _ t') _) -> (C.Bound dt  l i , t')
@@ -82,7 +82,7 @@ tc env (D.E l t e) = case e of
            v'@(C.E _ t'' _) = fixType env v t'
 
   Fun params body -> se t' $ Fun params' body'
-    where params'               = for params  $ \(BT l i t) -> BT l i $ checkT env t
+    where params'               = for params $ \(BT l i t) -> BT l i $ checkT env t
           bindParams (BT l i t) = (i, Def Val (BT l i t) ())
           env'                  = M.union (M.fromList $ bindParams <$> params') env
           body'@(C.E _ retT _)  = tc env' body
