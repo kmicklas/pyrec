@@ -51,16 +51,6 @@ data Type bn id ty
   | TObject (Map FieldName ty)
   deriving (Eq, Functor, Foldable, Traversable)
 
-instance (Show bn, Show id, Show ty) => Show (Type bn id ty) where
-  show TNum = "Number"
-  show TStr = "String"
-  show (TIdent id) = show id
-  show (TFun params r) = "(" ++ intercalate ", " (show <$> params) ++ ")" ++
-                         " -> " ++ show r
-  show (TParam params r) = "<" ++ intercalate ", " (show <$> params) ++ ">" ++
-                           " " ++ show r
-  show TType = "Type"
-
 data Kind
   = KType
   | KFun [Kind] Kind
@@ -88,3 +78,15 @@ data Pattern bt bn
 data Variant bt bn
   = Variant bn (Maybe [bt])
   deriving (Eq, Show)
+
+
+instance (Show bn, Show id, Show ty) => Show (Type bn id ty) where
+  show t = case t of
+    TNum              -> "Number"
+    TStr              -> "String"
+    (TIdent id)       -> show id
+    (TFun params r)   -> "(" ++ intercalate ", " (show <$> params) ++ ")" ++
+                         " -> " ++ show r
+    (TParam params r) -> "<" ++ intercalate ", " (show <$> params) ++ ">" ++
+                         " " ++ show r
+    TType             -> "Type"

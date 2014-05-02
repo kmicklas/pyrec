@@ -276,7 +276,7 @@ unifyWithSubsts env substs a b = case (a, b) of
   (D.TUnknown, other)      -> checkT env other
   (other,      D.TUnknown) -> checkT env other
 
-  (error@(TError _), t)    -> TError $ TypeMismatch error t
+--  (error@(TError _), t)    -> TError $ TypeMismatch error t
   (_,          _)          -> TError $ TypeMismatch a b
 
   where recur = unifyWithSubsts env substs

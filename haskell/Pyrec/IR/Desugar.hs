@@ -1,9 +1,11 @@
 module Pyrec.IR.Desugar where
 -- The IR after desugaring
 
-import Data.Map (Map)
+import qualified Data.Map          as M
+import           Data.Map                       (Map)
+import           Data.List
 
-import Text.Parsec.Pos
+import           Text.Parsec.Pos
 
 import qualified Pyrec.IR as IR
 
@@ -25,12 +27,6 @@ data Type
   | TError TypeError
   deriving (Eq)
 
-instance Show Type where
-  show (T t)               = show t
-  show TUnknown            = "?"
-  show (PartialObj fields) = "Object" -- TODO
-  show (TError e)          = show e
-
 -- the type checking algorithm insists we use
 -- the same Type adt before and after checking
 data TypeError
@@ -48,6 +44,15 @@ data Error
   deriving (Eq)
 
 type ErrorMessage = (Loc, Error)
+
+
+instance Show Type where
+  show t = case t of
+    (T t)               -> show t
+    TUnknown            -> "?"
+    (PartialObj fields) -> "{" ++ (intercalate ", " $ map f $ M.toList fields) ++ "}"
+      where f (k,v) = show k ++ " : " ++ show v
+    (TError e)          -> show e
 
 instance Show TypeError where
   show e = case e of
