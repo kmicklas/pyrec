@@ -19,7 +19,7 @@ data BindN
   deriving (Eq, Show)
 
 data Type
-  = T (IR.Type Id Type)
+  = T (IR.Type BindN Id Type)
   | TUnknown
   | PartialObj (Map IR.FieldName Type)
   | TError TypeError

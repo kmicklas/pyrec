@@ -18,12 +18,14 @@ data Expr
   = Num Double
   | Str String
   | Ident id
-  | Fun [bt] ex
+  | Fun  [bt] ex -- λ ident:Type . Expr
+  | FunT [bn] ex -- Λ x . Expr
 
   | Let   (Decl bt bn ex) ex
   | Graph [Decl bt bn ex] ex
 
-  | App ex [ex]
+  | App  ex [ex]
+  | AppT ex [ty]
   | Assign id ex
   | Cases ty ex [Case bt bn ex]
 
@@ -34,15 +36,15 @@ data Expr
   | Access ex FieldName
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
-data Type id ty
+data Type bn id ty
   = TAny
   | TNum
   | TStr
   | TIdent id
-  | TFun [ty] ty
-  | TParam [bn] ty 
+  | TFun [ty] ty   -- A → (B → (...))
+  | TParam [bn] ty -- ∀a . (∀b . (...))
 
-  | TType
+  | TType -- not used in System F, but useful for errors now and future extensions later...
 
   | TObject (Map FieldName ty)
   deriving (Eq, Show, Functor, Foldable, Traversable)

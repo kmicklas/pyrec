@@ -66,7 +66,7 @@ tc env (D.E l t e) = case e of
           bindConstrs (Variant (BN vl vi) ps) = (vi, Def Val (BT vl vi $ T $ k $ TIdent vi) ())
             where k = case ps of
                     Nothing     -> id
-                    Just params -> TFun SType (for params $ \(BT _ _ t) -> t) . T
+                    Just params -> TFun (for params $ \(BT _ _ t) -> t) . T
 
           env'             = M.union (M.fromList $ (bi, envData) : fmap bindConstrs variants') env
           e'@(C.E _ t'  _) = fixType env' e t
@@ -87,15 +87,15 @@ tc env (D.E l t e) = case e of
           env'                  = M.union (M.fromList $ bindParams <$> params') env
           body'@(C.E _ retT _)  = tc env' body
           t'                    = unify env t $ D.T
-                                  $ TFun SType (for params' $ \(BT _ _ pt) -> pt) retT
+                                  $ TFun (for params' $ \(BT _ _ pt) -> pt) retT
 
   App f args -> se t' $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
           args' = tc env <$> args
           getT (C.E _ t _) = t
-          ft = D.T $ TFun SType (getT <$> args') t
+          ft = D.T $ TFun (getT <$> args') t
           t' = case ft' of
-            D.T (TFun SType _ retT) -> retT
+            D.T (TFun _ retT) -> retT
             _                 -> D.TError $ D.TypeMismatch ft ft'
 
   Cases vt v cases -> se t'' $ Cases vt' v' cases'
@@ -185,17 +185,10 @@ tc env (D.E l t e) = case e of
 
 checkT :: Env -> D.Type -> D.Type
 checkT env t = case t of
-  TUnknown                  -> TUnknown
-  D.T TNum                  -> t
-  D.T TStr                  -> t
-  D.T (TFun SType args res) -> D.T $ TFun SType (checkT env <$> args) res
-  k@(D.T (TFun SKind _ _))  -> checkKind k
-
-checkKind :: D.Type -> D.Type
-checkKind f = case f of
-  (TUnknown)                  -> TUnknown
-  (D.T TType)                 -> D.T $ TType
-  (D.T (TFun SKind args res)) -> D.T $ TFun SKind (checkKind <$> args) res
+  TUnknown            -> TUnknown
+  D.T TNum            -> t
+  D.T TStr            -> t
+  D.T (TFun args res) -> D.T $ TFun (checkT env <$> args) res
 
 -- expected then got
 unify :: Env -> D.Type -> D.Type -> D.Type
@@ -203,11 +196,10 @@ unify env a b = case (a, b) of
   (D.T TNum,   D.T TNum)   -> D.T TNum
   (D.T TStr,   D.T TStr)   -> D.T TStr
 
-  (D.T (TFun as aParams aRes), D.T (TFun bs bParams bRes)) ->
+  (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) ->
     try $ D.T <$> do
-      guard $ as == bs
       params <- map2S recur aParams bParams
-      return $ TFun as params $ recur aRes bRes
+      return $ TFun params $ recur aRes bRes
 
   ((D.T (TObject o1)), (D.T (TObject o2))) ->
     try $ D.T <$> TObject <$> do
