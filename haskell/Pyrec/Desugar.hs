@@ -49,6 +49,8 @@ convBN (Node p i) = return $ D.BN p i
 convType :: Node Type -> DS D.Type
 convType (Node p t) = case t of
   TId id@(Node _ name) -> return $ D.T $ IR.TIdent name
+  TFun tys ty          -> fmap     D.T $ IR.TFun <$> (mapM recur tys) <*> recur ty
+  where recur = convType . Node p
 
 convMaybeType :: Maybe (Node Type) -> DS D.Type
 convMaybeType t = case t of
