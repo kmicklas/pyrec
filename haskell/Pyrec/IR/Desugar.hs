@@ -36,6 +36,7 @@ data TypeError
 
 data Expr
   = E Loc Type (IR.Expr BindT BindN Id Type Expr)
+  | Constraint Loc Type Expr
   deriving (Eq, Show)
 
 data Error

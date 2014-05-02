@@ -83,6 +83,8 @@ convExpr (Node p e) = case e of
   App  f args -> fmap mkU $ IR.App  <$> convExpr f <*> sequence (convExpr <$> args)
   AppT f args -> fmap mkU $ IR.AppT <$> convExpr f <*> sequence (convType <$> args)
 
+  TypeConstraint expr typ -> D.Constraint p <$> convType typ <*> convExpr expr
+
   where mk = D.E p
         mkT = mk . D.T
         mkU = mk D.TUnknown

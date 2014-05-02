@@ -36,10 +36,12 @@ bindTParams :: BindN -> (Id, Entry)
 bindTParams (BN l i) = (i, Def Val (BT l i $ D.T TType) ())
 
 fixType :: Env -> D.Expr -> D.Type -> C.Expr
-fixType env (D.E l et e) t = tc env $ D.E l (unify env t et) e
+fixType env (D.Constraint _ et e) t = fixType env e $ unify env t et
+fixType env (D.E          l et e) t = tc env $ D.E l (unify env t et) e
 
 tc :: Env -> D.Expr -> C.Expr
-tc env (D.E l t e) = case e of
+tc env (D.Constraint _ t e) = fixType env e t
+tc env (D.E          l t e) = case e of
 
   Num n -> se (unify env t $ D.T $ TIdent "Number") $ Num n
   Str s -> se (unify env t $ D.T $ TIdent "String") $ Str s
