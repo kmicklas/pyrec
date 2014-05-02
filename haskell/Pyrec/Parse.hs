@@ -33,10 +33,19 @@ block :: Parse Block
 block = many stmt
 
 stmt :: Parse (Node Statement)
-stmt = node $ try letStmt <|> try funStmt <|> (ExprStmt <$> expr)
+stmt = node $ try letStmt
+          <|> try varStmt
+          <|> try funStmt
+          <|> (ExprStmt <$> expr)
 
 letStmt :: Parse Statement
-letStmt = fmap LetStmt $ Let <$> bind <* op "=" <*> expr
+letStmt = LetStmt <$> letBind
+
+varStmt :: Parse Statement
+varStmt = kw "var" *> (VarStmt <$> letBind)
+
+letBind :: Parse Let
+letBind = Let <$> bind <* op "=" <*> expr
 
 funStmt :: Parse Statement
 funStmt = (kw "fun" *>) $
@@ -55,7 +64,7 @@ params :: Parse [Bind]
 params = parenNoSpace *> sepBy bind (op ",") <* op ")"
 
 bind :: Parse Bind
-bind = Bind <$> iden <* op "::" <*> optionMaybe type_
+bind = Bind <$> iden <*> optionMaybe (op "::" *> type_)
 
 type_ :: Parse (Node Type)
 type_ = node $ TId <$> iden
