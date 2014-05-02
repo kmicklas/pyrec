@@ -66,12 +66,18 @@ convExpr (Node p e) = case e of
   Fun (Just tparams) Nothing       retT body -> mkT <$> t <*> body'
     where tparams' = mapM convBN tparams
           t        = IR.TParam <$> tparams' <*> convMaybeType retT
-          body'    = IR.FunT <$> tparams' <*> convBlock body
+          body'    = IR.FunT   <$> tparams' <*> convBlock     body
 
-  Fun Nothing        (Just params) retT body -> undefined
-    where (types, ids) = unzip $ (\(Bind p i) -> (p, i)) <$> params
+  Fun Nothing        (Just params) retT body -> mkT <$> t <*> body'
+    where binds    = mapM convBind params
+          types    = (fmap . fmap) (\(D.BT _ _ t) -> t) binds
+          t        = IR.TFun <$> types <*> convMaybeType retT
+          body'    = IR.Fun  <$> binds <*> convBlock     body
 
-  Fun tparams params retT body -> undefined
+  Fun tparams params retT body ->
+    convExpr $ rebuild $ Fun tparams Nothing Nothing
+                          $ [rebuild $ ExprStmt $ rebuild $ Fun Nothing params retT body]
+
 
   where mk = D.E p
         mkT = mk . D.T
