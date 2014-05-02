@@ -240,8 +240,10 @@ unifyWithSubsts :: Env -> Map Id Id -> D.Type -> D.Type -> D.Type
 unifyWithSubsts env substs a b = case (a, b) of
   (D.T (TIdent a), D.T (TIdent b)) ->
     try $ D.T <$> do
-      a' <- M.lookup a substs
-      guard $ a' == b
+      -- either a substitutes for b, or a has no substitution and a == b
+      guard $ case M.lookup a substs of
+        Just a' -> a' == b
+        Nothing -> a  == b
       return $ TIdent a
 
   (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) ->
