@@ -1,6 +1,6 @@
 module Pyrec.Check where
 
-import           Prelude                 hiding (map, mapM, sequence)
+import           Prelude                 hiding (mapM, sequence)
 
 import           Control.Applicative
 import           Control.Monad           hiding (mapM, sequence)
@@ -96,21 +96,20 @@ tc env (D.E l t e) = case e of
           t'                      = unify env t $ D.T $ TParam params retT
 
   App f args -> se t' $ App f' args'
-    where f'@(C.E _ ft' _) = fixType env f ft
-          args' = tc env <$> args
-          getT (C.E _ t _) = t
-          ft = D.T $ TFun (getT <$> args') t
+    where args' = tc env <$> args
+          ft = D.T $ TFun (for args' $ \ (C.E _ t _) -> t) t
+          f'@(C.E _ ft' _) = fixType env f ft
           t' = case ft' of
             D.T (TFun _ retT) -> retT
             _                 -> D.TError $ D.TypeMismatch ft ft'
 
-  AppT f args -> se t' $ AppT f' args'
-    where f'@(C.E _ ft' _) = fixType env f ft
-          args' = checkT env <$> args
-          ft = D.T $ TFun args' t
-          t' = case ft' of
-            D.T (TParam _ retT) -> retT
-            _                   -> D.TError $ D.TypeMismatch ft ft'
+  AppT f args -> se t' $ AppT f' args
+    where f'@(C.E _ ft _) = tc env f
+          t' = case ft of
+            D.T (TParam params retT) -> case map2S (,) params $ checkT env <$> args of
+              Just substs -> unify env t $ foldr subst retT substs
+              Nothing     -> TError $ error "john is confused"
+            _                        -> TError $ error "dunno"
 
   Cases vt v cases -> se t'' $ Cases vt' v' cases'
     where v'@(C.E _ vt' _) = fixType env v vt
@@ -167,7 +166,7 @@ tc env (D.E l t e) = case e of
 
   EmptyObject -> se (unify env t $ D.T $ TObject M.empty) EmptyObject
 
-  -- can this be made less rediculous?
+  -- can this be made less ridiculous?
   Extend obj fi fv -> se t' $ Extend obj' fi fv'
     where fv' @(C.E _ ft  _) = tc env fv
 
@@ -196,6 +195,15 @@ tc env (D.E l t e) = case e of
 
   where se = C.E l
 
+subst :: (BindN, D.Type) -> D.Type -> D.Type
+subst s@(param@(BN _ name), arg) t = case t of
+  D.T (TIdent id)          -> if name == id then arg else t
+  D.T (TParam params retT) -> if elem name $ for params $ \ (BN _ n) -> n
+                              then t
+                              else D.T $ TParam params $ subst s retT
+  D.T inner                -> D.T        $ subst s <$> inner
+  PartialObj fields        -> PartialObj $ subst s <$> fields
+  _                        -> t
 
 checkT :: Env -> D.Type -> D.Type
 checkT env t = case t of
