@@ -36,9 +36,8 @@ convBlock stmts = case stmts of
     where afterDef p [] = do tell [(p, D.EndBlockWithDef)]
                              convBlock []
           afterDef p1 rest@(Node p2 _ : _) =
-            do if sourceLine p1 == sourceLine p2
-               then tell [(p2, D.SameLineStatements)]
-               else return ()
+            do when (sourceLine p1 == sourceLine p2) $
+                 tell [(p2, D.SameLineStatements)]
                convBlock rest
 
 convBind :: Bind -> DS D.BindT
