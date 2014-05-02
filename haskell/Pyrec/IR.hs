@@ -38,8 +38,7 @@ data Expr
   deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Type bn id ty
-  = TAny
-  | TNum
+  = TNum
   | TStr
   | TIdent id
   | TFun [ty] ty   -- (A, B, C) -> R

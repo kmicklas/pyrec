@@ -7,8 +7,9 @@ import           Prelude                 hiding (mapM, sequence)
 import           Control.Applicative
 import           Control.Monad           hiding (mapM, sequence)
 import           Control.Monad.Reader    hiding (mapM, sequence)
+import           Control.Monad.State     hiding (mapM, sequence)
 
-import           Data.List                      (find)
+import           Data.List                      (foldl', find)
 import qualified Data.Map          as M
 import           Data.Map                       (Map)
 import           Data.Maybe                     (fromMaybe)
@@ -114,11 +115,14 @@ tc env (D.E l t e) = case e of
     where (C.E fl ft fe)          = tc env f
           expected                = D.T $ TParam (for [1..length args] $ \ n -> BN fl $ 'T' : show n) t
           (t', ft')               = case ft of
-            D.T (TParam params retT) -> (,ft) $ case map2S (,) params $ checkT env <$> args of
-              Just substs -> unify env t $ foldr subst retT substs
+            D.T (TParam params retT) -> (,ft) $ case map2S (,)
+                                                        (stripped <$> params)
+                                                        (checkT env <$> args) of
+              Just substs -> unify env t $ subst (M.fromList substs) retT
               Nothing     -> TError $ TypeMismatch t retT
             _                        -> (ft, TError $ TypeMismatch expected ft)
           f'                      = C.E fl ft' fe
+          stripped (BN _ i)       = i
 
   Cases vt v cases -> se t'' $ Cases vt' v' cases'
     where v'@(C.E _ vt' _) = fixType env v vt
@@ -151,7 +155,7 @@ tc env (D.E l t e) = case e of
 
                     results :: Maybe [(Bool, Pattern , Env)]
                     (newerr, results) = case params of
-                      Nothing     -> (False , fmap fmap fmap (bind $ T TAny) pats)
+                      Nothing     -> (False , (fmap . fmap) (bind TUnknown) pats)
                       Just params -> (True  , zipWith bind <$> params <*> pats)
 
                     result = case results of
@@ -204,16 +208,29 @@ tc env (D.E l t e) = case e of
 
   where se = C.E l
 
-subst :: (BindN, D.Type) -> D.Type -> D.Type
-subst s@((BN _ name), arg) t = case t of
-  D.T (TIdent id)          -> if name == id then arg else t
-  D.T (TParam params retT) -> if elem name $ for params $ \ (BN _ n) -> n
-                              then t
-                              else D.T $ TParam params $ subst s retT
-  D.T inner                -> D.T        $ subst s <$> inner
-  PartialObj fields        -> PartialObj $ subst s <$> fields
+
+subst :: Map Id D.Type -> D.Type -> D.Type
+subst = substGeneric () $ \substs params ->
+  return $ foldl' (flip M.delete) substs $ for params $ \ (BN _ n) -> n
+
+normalizeT :: D.Type -> D.Type
+normalizeT = flip (substGeneric 0) M.empty $ \substs params ->
+  do count <- get
+     put $ count + length params
+     return $ foldl' (\o (k,v) -> M.insert k v o) substs $ zipWith f params [count..]
+  where f (BN _ i) n = (i, D.T $ TIdent $ "__P" ++ show n)
+
+substGeneric :: state -> (Map Id D.Type -> [BindN] -> State state (Map Id D.Type))
+                -> Map Id D.Type -> D.Type -> D.Type
+substGeneric s f substs t = case t of
+  D.T (TIdent id)          -> fromMaybe t $ M.lookup id substs
+  D.T (TParam params retT) -> D.T $ TParam params $ recur s' substs' retT
+    where (substs', s') = runState (f substs params) s
+  D.T inner                -> D.T        $ recur s substs <$> inner
+  PartialObj fields        -> PartialObj $ recur s substs <$> fields
   TError _                 -> t
   TUnknown                 -> t -- redundancy to future-proof
+  where recur s' = substGeneric s' f
 
 checkT :: Env -> D.Type -> D.Type
 checkT env t = case t of
@@ -226,11 +243,18 @@ checkT env t = case t of
   TError _                 -> t
   TUnknown                 -> t -- redundancy to future-proof
 
--- expected then got
+
 unify :: Env -> D.Type -> D.Type -> D.Type
-unify env a b = case (a, b) of
+unify env a b = unifyAfterSubst env (normalizeT a) (normalizeT b)
+
+-- expected then got
+unifyAfterSubst :: Env -> D.Type -> D.Type -> D.Type
+unifyAfterSubst env a b = case (a, b) of
   (D.T TNum,   D.T TNum)   -> D.T TNum
   (D.T TStr,   D.T TStr)   -> D.T TStr
+
+  (D.T (TIdent _), D.T (TIdent _)) ->
+    if a == b then a else try Nothing
 
   (D.T (TFun aParams aRes), D.T (TFun bParams bRes)) ->
     try $ D.T <$> do
@@ -255,9 +279,10 @@ unify env a b = case (a, b) of
   (D.TUnknown, other)      -> checkT env other
   (other,      D.TUnknown) -> checkT env other
 
---  (_,          _)          -> TError $ TypeMismatch a b
+  (error@(TError _), t)    -> TError $ TypeMismatch error t
+  (_,          _)          -> TError $ TypeMismatch a b
 
-  where recur = unify env
+  where recur = unifyAfterSubst env
         try :: Maybe D.Type -> D.Type
         try t = case t of
           Just t  -> t
