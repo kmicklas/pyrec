@@ -5,7 +5,9 @@ import Control.Applicative
 
 import Data.Map (Map)
 
-import qualified Pyrec.IR as IR
+import           Pyrec.Error
+
+import qualified Pyrec.IR         as IR
 import           Pyrec.IR.Desugar      (Loc, BindN, BindT, Type)
 import qualified Pyrec.IR.Desugar as D
 import qualified Pyrec.IR.Check   as C
@@ -47,7 +49,7 @@ data TypeError
   | PartialObj (Map IR.FieldName D.Type)
   deriving (Eq)
 
-type ErrorMessage = (Loc, Error)
+type ErrorMessage = Message Error
 
 instance Show Error where
   show e = case e of

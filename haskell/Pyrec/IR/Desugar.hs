@@ -7,7 +7,8 @@ import           Data.List
 
 import           Text.Parsec.Pos
 
-import qualified Pyrec.IR as IR
+import           Pyrec.Error
+import qualified Pyrec.IR          as IR
 
 type Id  = String
 type Loc = SourcePos
@@ -44,8 +45,7 @@ data Error
   | SameLineStatements
   deriving (Eq)
 
-type ErrorMessage = (Loc, Error)
-
+type ErrorMessage = Message Error
 
 instance Show Type where
   show t = case t of

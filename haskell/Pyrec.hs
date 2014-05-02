@@ -5,6 +5,7 @@ import           Control.Monad.Writer
 import           Text.Parsec.Error
 
 import           Pyrec.Misc
+import           Pyrec.Error
 
 import qualified Pyrec.AST        as A
 

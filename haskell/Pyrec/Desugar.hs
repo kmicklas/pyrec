@@ -13,6 +13,7 @@ import           Data.Traversable         hiding (sequence)
 import           Text.Parsec.Pos
 
 import           Pyrec.Misc
+import           Pyrec.Error
 import           Pyrec.AST
 import qualified Pyrec.IR            as IR
 import qualified Pyrec.IR.Desugar    as D
@@ -33,11 +34,11 @@ convBlock stmts = case stmts of
     D.E p D.TUnknown <$>
       (IR.Let <$> (IR.Def IR.Val <$> convBind bd <*> convExpr e)
               <*> afterDef p rest)
-    where afterDef p [] = do tell [(p, D.EndBlockWithDef)]
+    where afterDef p [] = do tell [Msg p D.EndBlockWithDef]
                              convBlock []
           afterDef p1 rest@(Node p2 _ : _) =
             do when (sourceLine p1 == sourceLine p2) $
-                 tell [(p2, D.SameLineStatements)]
+                 tell [Msg p2 D.SameLineStatements]
                convBlock rest
 
 convBind :: Bind -> DS D.BindT

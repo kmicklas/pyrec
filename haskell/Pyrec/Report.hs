@@ -10,6 +10,7 @@ import           Data.Traversable
 import           Data.Foldable
 
 import           Pyrec.Misc
+import           Pyrec.Error
 
 import           Pyrec.IR
 import qualified Pyrec.IR.Desugar     as D
@@ -37,8 +38,9 @@ prepare (E l t e) = R.EE l t [] $ prepare <$> e
 trim :: R.ExprWithErrors R.Id -> RP R.Expr
 trim = foldExpr $ \(R.EE l t errors _) inner' -> case errors of
   [] -> R.E l t <$> sequence inner'
-  _  -> do let errMsgs = fmap (\a -> (l,a)) errors
+  _  -> do let errMsgs = fmap (\a -> Msg l a) errors
            tell errMsgs
+           _ <- sequence inner' -- report errors from further down the treex
            return $ R.Error $ errMsgs
 
 -- | Adds more errors to a node
