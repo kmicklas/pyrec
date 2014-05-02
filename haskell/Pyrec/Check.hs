@@ -9,7 +9,7 @@ import           Control.Monad.Reader    hiding (mapM, sequence)
 import           Data.List                      (find)
 import qualified Data.Map          as M
 import           Data.Map                       (Map)
-import           Data.Maybe                     (isJust, fromMaybe)
+import           Data.Maybe                     (fromMaybe)
 import           Data.Traversable        hiding (for)
 
 import           Pyrec.Misc
@@ -206,7 +206,6 @@ unify env a b = case (a, b) of
       guard $ M.size o1 == M.size o2             -- same size
       let match = M.intersectionWith recur o1 o2 -- unify common elements
       guard $ M.size match == M.size o1          -- intersection same size means ident keys
-      guard $ and $ allGood <$> M.elems match    -- no type errors
       return match
 
   (l@(D.T (TObject _)), r@(D.PartialObj _)) ->
@@ -215,7 +214,6 @@ unify env a b = case (a, b) of
     try $ D.T <$> TObject <$> do
       guard $ M.isSubmapOfBy (\_ _ -> True) p o  -- is partial subset
       let update = M.intersectionWith recur o p  -- unify fields in common
-      guard $ and $ allGood <$> M.elems update   -- make sure unification succeeded
       return $ M.union update o                  -- perform updates
 
   (D.TUnknown, other)      -> checkT env other
@@ -228,11 +226,3 @@ unify env a b = case (a, b) of
         try t = case t of
           Just t  -> t
           Nothing -> TError $ TypeMismatch a b
-
-        allGood t = isJust $ help t
-          where help :: D.Type -> Maybe D.Type
-                help t = case t of
-                  (TError     _) -> Nothing
-                  (TUnknown)     -> Just undefined -- doesn't matter what is here
-                  (PartialObj t) -> PartialObj <$> mapM help t
-                  (T          t) -> T          <$> mapM help t
