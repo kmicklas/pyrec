@@ -10,33 +10,33 @@ import Text.Parsec.Pos
 
 data Node a
   = Node SourcePos a
-  deriving (Eq, Show, Ord, Functor, Foldable, Traversable)
+  deriving (Eq, Ord, Functor, Foldable, Traversable)
 
 type Id = Node String
 
 data Bind
   = Bind Id (Maybe (Node Type))
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 data Module
   = Module (Node Provide) [Node Import] Block
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 data Provide
   = NoProvide
   | ProvideAll
   | ProvideExpr (Node Expr)
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 data Import
   = Import ModuleName
   | ImportQualified ModuleName Id
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 data ModuleName
   = Named Id
   | File String
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 type Block = [Node Statement]
 
@@ -46,26 +46,29 @@ data Statement
   | VarStmt Let
   | AssignStmt Id (Node Expr)
   | Graph Block
-  | FunStmt (Maybe [Id]) Id [Bind] (Maybe (Node Type)) Block
+  | FunStmt (Maybe [Id]) Id (Maybe [Bind]) (Maybe (Node Type)) Block
   | Data Id (Maybe [Id]) [Variant]
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 data Variant
   = Variant Id [Bind]
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 data Let
   = Let Bind (Node Expr)
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
 
 data Type
-  = TId Id
-  | TFun [Type] Type
-  deriving (Eq, Show, Ord)
+  = TIdent Id
+  | TFun   [Type] Type
+  | TParam [Id]   Type
+  | TObject [Bind]
+  deriving (Eq, Ord)
 
 data Expr
   = Num Double
-  | Id Id
+  | Str String
+  | Ident Id
 
   | App  (Node Expr) [Node Expr]
   | AppT (Node Expr) [Node Type]
@@ -74,4 +77,4 @@ data Expr
   | Block Block
 
   | TypeConstraint (Node Expr) (Node Type)
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)

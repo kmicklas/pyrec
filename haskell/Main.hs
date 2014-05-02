@@ -3,8 +3,8 @@ module Main where
 import           Control.Applicative
 import           Control.Monad.Writer
 
-import qualified Data.Map          as M
-import           Data.Map               (Map)
+import qualified Data.Map         as M
+import           Data.Map         (Map)
 
 import           Text.Parsec.Pos
 import           Text.Parsec.Error

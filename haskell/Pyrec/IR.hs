@@ -3,11 +3,12 @@
 module Pyrec.IR where
 -- Abstract IR
 
+import Control.Applicative
+
 import Data.Foldable
 import Data.Traversable
 import Data.Map (Map)
 import Data.List
-import Control.Applicative
 
 type FieldName = String
 
@@ -37,7 +38,7 @@ data Expr
   | EmptyObject
   | Extend ex FieldName ex
   | Access ex FieldName
-  deriving (Eq, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Functor, Foldable, Traversable)
 
 data Type bn id ty
   = TIdent id
@@ -52,37 +53,29 @@ data Type bn id ty
 data Kind
   = KType
   | KFun [Kind] Kind
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data DefType
   = Val
   | Var
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Decl bt bn ex
   = Def DefType bt ex
   | Data bn [Variant bt bn]
-  deriving (Eq, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Functor, Foldable, Traversable)
 
 data Case bt bn ex
   = Case (Pattern bt bn) ex
-  deriving (Eq, Show, Functor, Foldable, Traversable)
+  deriving (Eq, Functor, Foldable, Traversable)
 
 data Pattern bt bn
   = Constr bn (Maybe [Pattern bt bn])
   | Binding bt
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Variant bt bn
   = Variant bn (Maybe [bt])
-  deriving (Eq, Show)
+  deriving (Eq)
 
 
-instance (Show bn, Show id, Show ty) => Show (Type bn id ty) where
-  show t = case t of
-    (TIdent id)       -> show id
-    (TFun params r)   -> "(" ++ intercalate ", " (show <$> params) ++ ")" ++
-                         " -> " ++ show r
-    (TParam params r) -> "<" ++ intercalate ", " (show <$> params) ++ ">" ++
-                         " " ++ show r
-    TType             -> "Type"

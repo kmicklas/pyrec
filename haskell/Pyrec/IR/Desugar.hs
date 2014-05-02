@@ -38,7 +38,7 @@ data TypeError
 data Expr
   = E Loc Type (IR.Expr BindT BindN Id Type Expr)
   | Constraint Loc Type Expr
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Error
   = EndBlockWithDef
@@ -46,21 +46,3 @@ data Error
   deriving (Eq)
 
 type ErrorMessage = Message Error
-
-instance Show Type where
-  show t = case t of
-    (T t)               -> show t
-    TUnknown            -> "?"
-    (PartialObj fields) -> "{" ++ (intercalate ", " $ map f $ M.toList fields) ++ "}"
-      where f (k,v) = show k ++ " : " ++ show v
-    (TError e)          -> show e
-
-instance Show TypeError where
-  show e = case e of
-    TypeMismatch exp got -> "Expected " ++ show exp ++ ", got " ++ show got
-    CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ show ty
-
-instance Show Error where
-  show e = case e of
-    EndBlockWithDef    -> "The last element in a block must be an expression"
-    SameLineStatements -> "Two statements should never be put on the same line"
