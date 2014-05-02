@@ -50,11 +50,6 @@ data Type bn id ty
   | TObject (Map FieldName ty)
   deriving (Eq, Functor, Foldable, Traversable)
 
-data Kind
-  = KType
-  | KFun [Kind] Kind
-  deriving (Eq)
-
 data DefType
   = Val
   | Var
