@@ -50,25 +50,3 @@ data TypeError
   deriving (Eq)
 
 type ErrorMessage = Message Error
-
-instance Show Error where
-  show e = case e of
-    Earlier    error     -> show error
-
-    UnboundId  ident     -> show ident ++ " is unbound"
-    MutateVar  loc ident -> "cannot mutate non-variable " ++ ident ++ ", bound at " ++ show loc
-
-    DupIdent dt loc iden -> sentance1 ++ " one of them is bound at " ++ show loc ++ "."
-      where sentance1 = case dt of
-              Pattern -> "pattern binds multiple identifiers named " ++ show iden ++ "."
-              Constr  -> "type has multiple variants named "         ++ show iden ++ "."
-              Graph   -> "graph has multiple declerations named "    ++ show iden ++ "."
-
-    TypeError ty err -> show err ++ " in " ++ show ty
-
-instance Show TypeError where
-  show error = case error of
-    TEEarlier terror    -> show terror
-
-    AmbiguousType        -> "ambiguous type ecountered"
-    PartialObj fields    -> "ambiguous object type encountered with fields " ++ show fields

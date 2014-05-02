@@ -17,6 +17,10 @@ import           Pyrec.Misc
 import           Pyrec.AST           as AST
 import qualified Pyrec.IR            as IR
 
+import qualified Pyrec.IR.Desugar    as D
+import qualified Pyrec.IR.Check      as C
+import qualified Pyrec.IR.Core       as R
+
 parenList :: [String] -> String
 parenList l = "("  ++ intercalate ", " l ++ ")"
 
@@ -95,28 +99,31 @@ instance Show Expr where
     (Block block)          -> "block:" ++ show block
     (TypeConstraint e t)   -> "(" ++ show e ++ " :: " ++ show t ++ ")"
 
-mkFunctions :: forall bt bn id ty ex
-            .  (bt -> Bind) -> (bn -> Id) -> (id -> Id)
-            -> ((IR.Type bn id ty       -> Type)  -> ty -> Type)
-            -> ((IR.Expr bt bn id ty ex -> Expr)  -> ex -> Expr)
-            -> ((IR.Expr bt bn id ty ex -> Block) -> ex -> Block)
-            -> ( IR.Expr bt bn id ty ex -> Expr
-               , IR.Expr bt bn id ty ex -> Block
-               , IR.Type bn id ty       -> Type)
-mkFunctions bt bn id ty ex bl = (resugarE, resugarB, resugarT)
+dmn q = Node (newPos "derp-dummy" 0 0) q
+
+mkFunctions ::
+  forall bt bn id ty ex
+  .  (                                     (ty -> Type)                  -> bt -> Bind)
+  -> (                                                                      bn -> Id)
+  -> (                                                                      id -> Id)
+  -> ((IR.Type bn id ty       -> Type)  -> (ex -> Expr) -> (ex -> Block) -> ty -> Type)
+  -> ((IR.Expr bt bn id ty ex -> Expr)  -> (ty -> Type) -> (ex -> Block) -> ex -> Expr)
+  -> ((IR.Expr bt bn id ty ex -> Block) -> (ty -> Type) -> (ex -> Expr)  -> ex -> Block)
+  -> ( ex -> Expr, ex -> Block, ty -> Type)
+mkFunctions bt bn id ty ex bl = (ex', bl', ty')
   where
-    dmn q = Node (newPos "derp-dummy" 0 0) q
-    ex' = ex resugarE
-    bl' = bl resugarB
-    ty' = ty resugarT
+    bt' = bt ty'
+    ty' = ty resugarT ex' bl'
+    ex' = ex resugarE ty' bl'
+    bl' = bl resugarB ty' ex'
 
     resugarE :: IR.Expr bt bn id ty ex -> Expr
     resugarE e = case e of
       (IR.Num n)     -> Num n
       (IR.Str s)     -> Str s
       (IR.Ident i)   -> Ident $ id i
-      (IR.Fun  bs e) -> Fun Nothing            (Just $ bt <$> bs) Nothing $ bl' e
-      (IR.FunT bs e) -> Fun (Just $ bn <$> bs) Nothing            Nothing $ bl' e
+      (IR.Fun  bs e) -> Fun Nothing            (Just $ bt' <$> bs) Nothing $ bl' e
+      (IR.FunT bs e) -> Fun (Just $ bn <$> bs) Nothing             Nothing $ bl' e
 
       (IR.App  f args) -> App  (dmn $ ex' f) $ dmn <$> ex' <$> args
       (IR.AppT f args) -> AppT (dmn $ ex' f) $ dmn <$> ty' <$> args
@@ -143,12 +150,12 @@ mkFunctions bt bn id ty ex bl = (resugarE, resugarB, resugarT)
     convDecl :: IR.Decl bt bn ex -> Node Statement
     convDecl d = dmn $ case d of
       (IR.Data b vs)   -> Data (bn b) Nothing $ variants <$> vs
-      (IR.Def  dt b v) -> k $ Let (bt b) (dmn $ ex' v)
+      (IR.Def  dt b v) -> k $ Let (bt' b) (dmn $ ex' v)
         where k = case dt of IR.Val -> LetStmt
                              IR.Var -> VarStmt
 
     variants :: IR.Variant bt bn -> Variant
-    variants (IR.Variant b ps) = Variant (bn b) $ bt <$> fromMaybe [] ps
+    variants (IR.Variant b ps) = Variant (bn b) $ bt' <$> fromMaybe [] ps
 
     resugarT :: IR.Type bn id ty -> Type
     resugarT t = case t of
@@ -163,6 +170,47 @@ mkFunctions bt bn id ty ex bl = (resugarE, resugarB, resugarT)
 
     --type resugE = IR.Expr bt bn id ty ex -> Expr
     --type resugB = IR.Expr bt bn id ty ex -> Block
+
+
+(convDE, convDB, convDT) =
+  mkFunctions
+    (\cT       (D.BT l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
+    (\         (D.BN l i)   -> Node l i)
+    (\         i            -> dmn i)
+    (\qT cE cB (D.T t)      -> qT t)
+    (\qE cT cB e            -> case e of
+        (D.E _ D.TUnknown e) -> qE e
+        (D.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t)
+    (\qB cT cE (D.E _ _ e)  -> qB e)
+
+instance Show D.Expr where show = show . convDB
+instance Show D.Type where show = show . convDT
+
+(convCE, convCB, _) =
+  mkFunctions
+    (\cT       (D.BT l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
+    (\         (D.BN l i)   -> Node l i)
+    (\         i            -> dmn $ C.getId i)
+    (\_  _  _  t            -> convDT t) -- D.T uses D.Id, for better or worse
+    (\qE cT cB e            -> case e of
+        (C.E _ D.TUnknown e) -> qE e
+        (C.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t)
+    (\qB cT cE (C.E _ _ e)  -> qB e)
+
+instance Show C.Expr where show = show . convCB
+
+(convRE, convRB, _) =
+  mkFunctions
+    (\cT       (D.BT    l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
+    (\         (D.BN    l i)   -> Node l i)
+    (\         (R.Bound l i)   -> Node l i)
+    (\_  _  _  t               -> convDT t) -- D.T uses D.Id, for better or worse
+    (\qE cT cB e               -> case e of
+        (R.E _ D.TUnknown e) -> qE e
+        (R.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t)
+    (\qB cT cE (R.E _ _ e)     -> qB e)
+
+instance Show R.Expr where show = show . convRB
 
 {-
 instance (Show bt, Show bn, Show id, Show ty, Show ex) => Show (Type bn id ty) where
@@ -196,5 +244,27 @@ instance Show Error where
   show e = case e of
     EndBlockWithDef    -> "The last element in a block must be an expression"
     SameLineStatements -> "Two statements should never be put on the same line"
+
+instance Show Error where
+  show e = case e of
+    Earlier    error     -> show error
+
+    UnboundId  ident     -> show ident ++ " is unbound"
+    MutateVar  loc ident -> "cannot mutate non-variable " ++ ident ++ ", bound at " ++ show loc
+
+    DupIdent dt loc iden -> sentance1 ++ " one of them is bound at " ++ show loc ++ "."
+      where sentance1 = case dt of
+              Pattern -> "pattern binds multiple identifiers named " ++ show iden ++ "."
+              Constr  -> "type has multiple variants named "         ++ show iden ++ "."
+              Graph   -> "graph has multiple declerations named "    ++ show iden ++ "."
+
+    TypeError ty err -> show err ++ " in " ++ show ty
+
+instance Show TypeError where
+  show error = case error of
+    TEEarlier terror    -> show terror
+
+    AmbiguousType        -> "ambiguous type ecountered"
+    PartialObj fields    -> "ambiguous object type encountered with fields " ++ show fields
 
 -}
