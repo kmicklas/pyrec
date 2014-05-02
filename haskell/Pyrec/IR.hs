@@ -18,8 +18,8 @@ data Expr
   = Num Double
   | Str String
   | Ident id
-  | Fun  [bt] ex -- λ x : Type . Expr
-  | FunT [bn] ex -- Λ A . Expr
+  | Fun  [bt] ex -- \lambda x : Type . Expr
+  | FunT [bn] ex -- \Lambda A        . Expr
 
   | Let   (Decl bt bn ex) ex
   | Graph [Decl bt bn ex] ex
@@ -42,8 +42,8 @@ data Type bn id ty
   | TNum
   | TStr
   | TIdent id
-  | TFun [ty] ty   -- (A, B, ...) → R
-  | TParam [bn] ty -- ∀ A, B, ... . T
+  | TFun [ty] ty   -- (A, B, C) -> R
+  | TParam [bn] ty -- <A, B, C> -> T
 
   | TType -- not used in System F, but useful for errors now and future extensions later...
 
