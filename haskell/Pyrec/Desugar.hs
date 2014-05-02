@@ -4,11 +4,11 @@ import           Prelude                  hiding (map, mapM)
 
 import           Control.Applicative
 import           Control.Monad            hiding (mapM)
-import           Control.Monad.Writer     hiding (mapM)
+import           Control.Monad.Writer     hiding (mapM, sequence)
 
 import qualified Data.Map            as M
 import           Data.Map                        (Map)
-import           Data.Traversable
+import           Data.Traversable         hiding (sequence)
 
 import           Text.Parsec.Pos
 
@@ -77,6 +77,8 @@ convExpr (Node p e) = case e of
     convExpr $ rebuild $ Fun tparams Nothing Nothing
                           $ [rebuild $ ExprStmt $ rebuild $ Fun Nothing params retT body]
 
+  App  f args -> fmap mkU $ IR.App  <$> convExpr f <*> sequence (convExpr <$> args)
+  AppT f args -> fmap mkU $ IR.AppT <$> convExpr f <*> sequence (convType <$> args)
 
   where mk = D.E p
         mkT = mk . D.T

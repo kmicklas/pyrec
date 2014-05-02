@@ -80,7 +80,7 @@ appVal :: Parse (Node Expr)
 appVal = do vn@(Node p v) <- val
             foldl (combine p) vn <$> many args
   where combine p f (Right vargs) = Node p $ App  f vargs
-        combine p f (Left  targs) = Node p $ TApp f targs
+        combine p f (Left  targs) = Node p $ AppT f targs
         args = vapp <|> tapp
         vapp = Right <$> (parenNoSpace *> sepBy expr  (op ",") <* closeParen)
         tapp = Left  <$> (angleNoSpace *> sepBy type_ (op ",") <* closeAngle)
