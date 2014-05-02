@@ -82,12 +82,18 @@ tc env (D.E l t e) = case e of
            v'@(C.E _ t'' _) = fixType env v t'
 
   Fun params body -> se t' $ Fun params' body'
-    where params'               = for params $ \(BT l i t) -> BT l i $ checkT env t
-          bindParams (BT l i t) = (i, Def Val (BT l i t) ())
-          env'                  = M.union (M.fromList $ bindParams <$> params') env
-          body'@(C.E _ retT _)  = tc env' body
-          t'                    = unify env t $ D.T
-                                  $ TFun (for params' $ \(BT _ _ pt) -> pt) retT
+    where params'                 = for params $ \(BT l i t) -> BT l i $ checkT env t
+          bindParams b@(BT _ i _) = (i, Def Val b ())
+          env'                    = M.union (M.fromList $ bindParams <$> params') env
+          body'@(C.E _ retT _)    = tc env' body
+          t'                      = unify env t $ D.T
+                                    $ TFun (for params' $ \(BT _ _ pt) -> pt) retT
+
+  FunT params body -> se t' $ FunT params body'
+    where bindParams (BN l i)     = (i, Def Val (BT l i $ D.T TType) ())
+          env'                    = M.union (M.fromList $ bindParams <$> params) env
+          body'@(C.E _ retT _)    = tc env' body
+          t'                      = unify env t $ D.T $ TParam params retT
 
   App f args -> se t' $ App f' args'
     where f'@(C.E _ ft' _) = fixType env f ft
@@ -97,6 +103,14 @@ tc env (D.E l t e) = case e of
           t' = case ft' of
             D.T (TFun _ retT) -> retT
             _                 -> D.TError $ D.TypeMismatch ft ft'
+
+  AppT f args -> se t' $ AppT f' args'
+    where f'@(C.E _ ft' _) = fixType env f ft
+          args' = checkT env <$> args
+          ft = D.T $ TFun args' t
+          t' = case ft' of
+            D.T (TParam _ retT) -> retT
+            _                   -> D.TError $ D.TypeMismatch ft ft'
 
   Cases vt v cases -> se t'' $ Cases vt' v' cases'
     where v'@(C.E _ vt' _) = fixType env v vt
