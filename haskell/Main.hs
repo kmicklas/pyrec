@@ -13,6 +13,7 @@ import qualified System.IO        as IO
 import qualified System.Exit      as Exit
 
 import           Pyrec
+import           Pyrec.Misc
 
 import           Pyrec.IR
 import           Pyrec.IR.Desugar as D
@@ -38,19 +39,21 @@ stdEnv = M.fromList $ fmap (uncurry numBinOp) [
           ( n
           , Def Val (D.BT (pos l) n $ T $ TType) ())
 
-main :: IO ()
-main = pretty =<< fmap runWriter . parseEmit (M.union foreignEnv stdEnv) <$> getContents
+env = M.union foreignEnv stdEnv
 
-pretty :: Either ParseError (String, Errors) -> IO ()
-pretty either = case either of
+main :: IO ()
+main = pretty True =<< fmap runWriter . parseEmit env <$> getContents
+
+pretty :: Bool -> Either ParseError (String, Errors) -> IO ()
+pretty exit either = case either of
   (Left  err)          -> do
     IO.hPutStrLn IO.stderr $ show err
-    Exit.exitFailure
+    when exit Exit.exitFailure
 
   (Right (llvm, errs)) -> do
     forM_ errs $ IO.hPutStrLn IO.stderr . show
     IO.hPutStr IO.stdout llvm
-    Exit.exitSuccess
+    when exit Exit.exitSuccess
 
 -- TESTING --
 pos = newPos "test" 1 . fromInteger

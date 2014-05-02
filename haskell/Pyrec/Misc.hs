@@ -1,7 +1,14 @@
+{-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE StandaloneDeriving #-}
+
 module Pyrec.Misc where
 
 import Control.Applicative
+
 import Data.Hashable
+import Data.Foldable
+import Data.Traversable hiding (for)
+
 import Text.Parsec.Pos
 
 -- | should be pretty self explanatory
@@ -22,3 +29,7 @@ showLoc p = show $ abs $ hash (sourceName p,
 infixr 9 <.>
 (<.>) :: Functor f => (a1 -> b) -> (a -> f a1) -> a -> f b
 a <.> b = fmap a . b
+
+-- newer versions of base have this
+deriving instance Foldable    (Either a)
+deriving instance Traversable (Either a)
