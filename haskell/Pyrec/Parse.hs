@@ -12,7 +12,7 @@ type Parse = Parsec String Bool -- Bool is for after space or not
 -- Parser:
 
 parseString :: Parse a -> String -> Either ParseError a
-parseString p input = runParser p False "test" input
+parseString p input = runParser p True "test" input
 
 program :: Parse Module
 program = endToken >> Module <$> provide <*> many import_ <*> block
@@ -88,7 +88,8 @@ appVal = do vn@(Node p v) <- val
 val :: Parse (Node Expr)
 val = node $ Num <$> number <|>
              Id  <$> iden <|>
-             funExpr
+             funExpr <|>
+             parenExpr
 
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
@@ -98,6 +99,12 @@ funExpr = (kw "fun" *>) $
                 <* begin
                 <*> block
                 <* end
+
+parenExpr :: Parse Expr
+parenExpr = do parenWithSpace
+               en@(Node _ e) <- expr
+               option e $ TypeConstraint en <$> (op "::" *> type_)
+            <* closeParen
 
 begin :: Parse ()
 begin = op ":"
