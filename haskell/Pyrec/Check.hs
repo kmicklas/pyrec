@@ -1,3 +1,5 @@
+{-# LANGUAGE TupleSections #-}
+
 module Pyrec.Check where
 
 import           Prelude                 hiding (mapM, sequence)
@@ -104,12 +106,14 @@ tc env (D.E l t e) = case e of
             _                 -> D.TError $ D.TypeMismatch ft ft'
 
   AppT f args -> se t' $ AppT f' args
-    where f'@(C.E _ ft _) = tc env f
-          t' = case ft of
-            D.T (TParam params retT) -> case map2S (,) params $ checkT env <$> args of
+    where (C.E fl ft fe) = tc env f
+          expected = D.T $ TParam (for [1..length args] $ \ n -> BN fl $ 'T' : show n) t
+          (t', ft') = case ft of
+            D.T (TParam params retT) -> (,ft) $ case map2S (,) params $ checkT env <$> args of
               Just substs -> unify env t $ foldr subst retT substs
-              Nothing     -> TError $ error "john is confused"
-            _                        -> TError $ error "dunno"
+              Nothing     -> TError $ TypeMismatch t retT
+            _                        -> (ft, TError $ TypeMismatch expected ft)
+          f' = C.E fl ft' fe
 
   Cases vt v cases -> se t'' $ Cases vt' v' cases'
     where v'@(C.E _ vt' _) = fixType env v vt
