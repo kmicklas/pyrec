@@ -49,8 +49,8 @@ convBN (Node p i) = return $ D.BN p i
 
 convType :: Node Type -> DS D.Type
 convType (Node p t) = case t of
-  TId id@(Node _ name) -> return $ D.T $ IR.TIdent name
-  TFun tys ty          -> fmap     D.T $ IR.TFun <$> (mapM recur tys) <*> recur ty
+  TIdent id@(Node _ name) -> return $ D.T $ IR.TIdent name
+  TFun   tys ty           -> fmap     D.T $ IR.TFun <$> (mapM recur tys) <*> recur ty
   where recur = convType . Node p
 
 convMaybeType :: Maybe (Node Type) -> DS D.Type
@@ -60,8 +60,8 @@ convMaybeType t = case t of
 
 convExpr :: Node Expr -> DS D.Expr
 convExpr (Node p e) = case e of
-  Num n          -> return $ mkT (IR.TIdent "Number") $ IR.Num n
-  Id (Node _ id) -> return $ mkU $ IR.Ident id
+  Num n             -> return $ mkT (IR.TIdent "Number") $ IR.Num n
+  Ident (Node _ id) -> return $ mkU $ IR.Ident id
 
   Fun Nothing Nothing Nothing     body -> convBlock $ body
   Fun Nothing Nothing (Just retT) body -> convExpr  $ rebuild $ TypeConstraint (rebuild $ Block body) retT

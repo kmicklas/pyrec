@@ -13,6 +13,7 @@ import qualified System.IO        as IO
 import qualified System.Exit      as Exit
 
 import           Pyrec
+import           Pyrec.PrettyPrint
 import           Pyrec.Misc
 
 import           Pyrec.IR

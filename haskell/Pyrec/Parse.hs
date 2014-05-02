@@ -55,7 +55,7 @@ funStmt :: Parse Statement
 funStmt = (kw "fun" *>) $
             FunStmt <$> optionMaybe typeParams
                     <*> iden
-                    <*> params
+                    <*> optionMaybe params
                     <*> optionMaybe (op "->" *> type_)
                     <* begin
                     <*> block
@@ -71,7 +71,7 @@ bind :: Parse Bind
 bind = Bind <$> iden <*> optionMaybe (op "::" *> type_)
 
 type_ :: Parse (Node Type)
-type_ = node $ TId <$> iden
+type_ = node $ TIdent <$> iden
 
 expr :: Parse (Node Expr)
 expr = appVal
@@ -87,7 +87,7 @@ appVal = do vn@(Node p v) <- val
 
 val :: Parse (Node Expr)
 val = node $ Num <$> number <|>
-             Id  <$> iden <|>
+             Ident  <$> iden <|>
              funExpr <|>
              parenExpr
 
