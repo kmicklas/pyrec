@@ -12,6 +12,7 @@ import           Text.Parsec.Error
 
 import           Pyrec.Misc
 import           Pyrec.Error
+import           Pyrec.PrettyPrint
 
 import qualified Pyrec.AST        as A
 

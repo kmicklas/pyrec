@@ -55,14 +55,14 @@ instance Show Statement where
     (LetStmt letd)   ->           show letd
     (VarStmt letd)   -> "var " ++ show letd
     (AssignStmt i e) -> show i ++ " := " ++ show e
-    (Graph decls)    -> "graph:" ++ show decls
+    (Graph decls)    -> "graph:" ++ sblock decls
 
     (FunStmt tps id ps ret body) ->
       "fun"
       ++ (opt $ angleList <$> fmap show <$> tps)
       ++ " " ++ show id
       ++ (opt $ parenList <$> fmap show <$> ps)
-      ++ (opt $ (" -> " ++) . show <$> ret) ++ ":" ++ show body
+      ++ (opt $ (" -> " ++) . show <$> ret) ++ ":" ++ sblock body
 
     (Data id params variants) ->
       "data " ++ show id
@@ -94,10 +94,20 @@ instance Show Expr where
     (Fun tps ps retT body) -> "fun"
                               ++ (opt $ angleList <$> fmap show <$> tps)
                               ++ (opt $ parenList <$> fmap show <$> ps)
-                              ++ (opt $ (" -> " ++) . show <$> retT) ++ ":" ++ show body
+                              ++ (opt $ (" -> " ++) . show <$> retT) ++ ":" ++ sblock body
 
-    (Block block)          -> "block:" ++ show block
+    (Block block)          -> "block:" ++ sblock block
     (TypeConstraint e t)   -> "(" ++ show e ++ " :: " ++ show t ++ ")"
+
+
+instance Show Module where
+  show (Module provide imports block) = show provide
+                                        ++ "\n\n" ++ (unlines $ show <$> imports)
+                                        ++ "\n\n" ++ sblock block
+
+instance Show Provide where  show _ = ""
+instance Show Import where  show _ = ""
+
 
 dmn q = Node (newPos "derp-dummy" 0 0) q
 
@@ -184,7 +194,9 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
         (D.E _ D.TUnknown e) -> qE e
         (D.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t
         (D.Constraint _ t e) -> TypeConstraint (dmn $ cE e) $ dmn $ cT t)
-    (\_  qB _  _  (D.E _ _ e)  -> qB e)
+    (\_  qB _ cE  e               -> case e of
+        (D.E _ _ e)          -> qB e
+        _                    -> [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show D.Expr where show = show . convDB
 instance Show D.Type where show = show . convDT
@@ -198,7 +210,9 @@ instance Show D.Type where show = show . convDT
     (\_  qE _  _  e            -> case e of
         (C.E _ D.TUnknown e) -> qE e
         (C.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t)
-    (\_  qB _  _  (C.E _ _ e)  -> qB e)
+    (\_  qB _ cE  e               -> case e of
+        (C.E _ _ e)          -> qB e
+        _                    -> [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show C.Expr where show = show . convCB
 
@@ -212,7 +226,9 @@ instance Show C.Expr where show = show . convCB
         (R.E _ D.TUnknown e) -> qE e
         (R.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t
         (R.Error          _) -> Ident $ dmn "__BOMB")
-    (\_  qB _  _  (R.E _ _ e)     -> qB e)
+    (\_  qB _ cE  e               -> case e of
+        (R.E _ _ e)          -> qB e
+        _                    -> [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show R.Expr where show = show . convRB
 
