@@ -36,7 +36,7 @@ block = many stmt
 stmt :: Parse (Node Statement)
 stmt = node $ try letStmt
           <|> try varStmt
-          <|> try funStmt
+          <|> funStmt -- no try because we do it internally
           <|> try assignStmt
           <|> (ExprStmt <$> expr)
 
@@ -53,8 +53,8 @@ assignStmt :: Parse Statement
 assignStmt = AssignStmt <$> iden <* op ":=" <*> expr
 
 funStmt :: Parse Statement
-funStmt = (kw "fun" *>) $
-            FunStmt <$> optionMaybe typeParams
+funStmt = try ((kw "fun" *>) $
+                  FunStmt <$> optionMaybe typeParams)
                     <*> iden
                     <*> optionMaybe params
                     <*> optionMaybe (op "->" *> type_)
