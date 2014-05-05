@@ -14,8 +14,8 @@ data Node a
 
 type Id = Node String
 
-data Bind
-  = Bind Id (Maybe (Node Type))
+data Bind id
+  = Bind id (Maybe (Node Type))
   deriving (Eq, Ord)
 
 data Module
@@ -42,39 +42,52 @@ type Block = [Node Statement]
 
 data Statement
   = ExprStmt (Node Expr)
-  | LetStmt Let
-  | VarStmt Let
+  | LetStmt (Let Id)
+  | VarStmt (Let Id)
   | AssignStmt Id (Node Expr)
   | Graph Block
-  | FunStmt (Maybe [Id]) Id (Maybe [Bind]) (Maybe (Node Type)) Block
+  | FunStmt (Maybe [Id]) Id (Maybe [Bind Id]) (Maybe (Node Type)) Block
   | Data Id (Maybe [Id]) [Variant]
   deriving (Eq, Ord)
 
 data Variant
-  = Variant Id [Bind]
+  = Variant Id [Bind Id]
   deriving (Eq, Ord)
 
-data Let
-  = Let Bind (Node Expr)
+data Let id
+  = Let (Bind id) (Node Expr)
   deriving (Eq, Ord)
 
 data Type
   = TIdent Id
   | TFun   [Type] Type
   | TParam [Id]   Type
-  | TObject [Bind]
+  | TObject [Bind Id]
   deriving (Eq, Ord)
 
 data Expr
   = Num Double
   | Str String
   | Ident Id
+  | Obj [Node Field]
 
   | App  (Node Expr) [Node Expr]
   | AppT (Node Expr) [Node Type]
+  | UnOp String (Node Expr)
+  | BinOp String (Node Expr) (Node Expr)
 
-  | Fun (Maybe [Id]) (Maybe [Bind]) (Maybe (Node Type)) Block
+  | Fun (Maybe [Id]) (Maybe [Bind Id]) (Maybe (Node Type)) Block
   | Block Block
 
   | TypeConstraint (Node Expr) (Node Type)
+  deriving (Eq, Ord)
+
+data Field
+  = Immut (Let Key)
+  | Mut   (Let Key)
+  deriving (Eq, Ord)
+
+data Key
+  = Name Id
+  | Dynamic (Node Expr)
   deriving (Eq, Ord)

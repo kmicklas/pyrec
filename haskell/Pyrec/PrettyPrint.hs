@@ -43,7 +43,7 @@ opt (Just i) = show i
 instance Show n => Show (Node n) where
   show (Node _ n) = show n
 
-instance Show Bind where
+instance Show (Bind Id) where
   show (Bind id ty) = show id ++ opt (show <$> ty)
 
 sblock :: [Node Statement] -> String
@@ -79,7 +79,7 @@ instance Show Type where
     (TParam params ret) -> (angleList $ show <$> params) ++ show ret
     (TObject fields)    -> curlyList $ show <$> fields
 
-instance Show Let  where
+instance Show (Let Id)  where
   show (Let bind expr) = show bind ++ " = " ++ show expr
 
 instance Show Expr where
@@ -113,7 +113,7 @@ dmn q = Node (newPos "derp-dummy" 0 0) q
 
 mkFunctions ::
   forall bt bn id ty ex
-  .  ((bt -> Bind)                                       -> (ty -> Type)                  -> bt -> Bind)
+  .  ((bt -> Bind Id)                                       -> (ty -> Type)                  -> bt -> Bind Id)
   -> ((bn -> Id)                                                                          -> bn -> Id)
   -> ((id -> Id)                                                                          -> id -> Id)
   -> ((ty -> Type)  -> (IR.Type bn id ty       -> Type)  -> (ex -> Expr) -> (ex -> Block) -> ty -> Type)

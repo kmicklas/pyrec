@@ -41,7 +41,7 @@ convBlock stmts = case stmts of
                  tell [Msg p2 D.SameLineStatements]
                convBlock rest
 
-convBind :: Bind -> DS D.BindT
+convBind :: Bind Id -> DS D.BindT
 convBind (Bind (Node p id) ty) = D.BT p id <$> convMaybeType ty
 
 convBN :: Id -> DS D.BindN

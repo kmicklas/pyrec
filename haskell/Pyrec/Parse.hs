@@ -21,7 +21,8 @@ program = endToken >> Module <$> provide <*> many import_ <*> block
 provide :: Parse (Node Provide)
 provide = node $ option NoProvide $
             do kw "provide"
-               (op "*" >> return ProvideAll) <|> (ProvideExpr <$> expr)
+               (op "*" >> return ProvideAll)
+                 <|> (ProvideExpr <$> expr <* end)
 
 import_ :: Parse (Node Import)
 import_ = node $ do kw "import"
@@ -40,13 +41,13 @@ stmt = node $ try letStmt
           <|> (ExprStmt <$> expr)
 
 letStmt :: Parse Statement
-letStmt = LetStmt <$> letBind
+letStmt = LetStmt <$> let_
 
 varStmt :: Parse Statement
-varStmt = kw "var" *> (VarStmt <$> letBind)
+varStmt = kw "var" *> (VarStmt <$> let_)
 
-letBind :: Parse Let
-letBind = Let <$> bind <* op "=" <*> expr
+let_ :: Parse (Let Id)
+let_ = Let <$> idenBind <* op "=" <*> expr
 
 assignStmt :: Parse Statement
 assignStmt = AssignStmt <$> iden <* op ":=" <*> expr
@@ -64,11 +65,14 @@ funStmt = (kw "fun" *>) $
 typeParams :: Parse [Id]
 typeParams = angleNoSpace *> sepBy iden (op ",") <* op ">"
 
-params :: Parse [Bind]
-params = parenNoSpace *> sepBy bind (op ",") <* closeParen
+params :: Parse [Bind Id]
+params = parenNoSpace *> sepBy idenBind (op ",") <* closeParen
 
-bind :: Parse Bind
-bind = Bind <$> iden <*> optionMaybe (op "::" *> type_)
+bind :: (Parse a) -> Parse (Bind a)
+bind b = Bind <$> b <*> optionMaybe (op "::" *> type_)
+
+idenBind = bind iden
+keyBind  = bind key
 
 type_ :: Parse (Node Type)
 type_ = node $ TIdent <$> iden
@@ -89,7 +93,8 @@ val :: Parse (Node Expr)
 val = node $ Num <$> number <|>
              Ident  <$> iden <|>
              funExpr <|>
-             parenExpr
+             parenExpr <|>
+             objExpr
 
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
@@ -105,6 +110,16 @@ parenExpr = do parenWithSpace
                en@(Node _ e) <- expr
                option e $ TypeConstraint en <$> (op "::" *> type_)
             <* closeParen
+
+objExpr :: Parse Expr
+objExpr = op "{" *> (Obj <$> sepBy objField (op ",")) <* op "}"
+
+objField :: Parse (Node Field)
+objField = node $ do c <- option Immut (kw "mutable" *> pure Mut)
+                     c <$> (Let <$> keyBind <* op ":" <*> expr)
+
+key :: Parse Key
+key = (Name <$> iden) <|> (op "[" *> (Dynamic <$> expr) <* op "]")
 
 begin :: Parse ()
 begin = op ":"
@@ -161,7 +176,7 @@ operators = [ "+", "-", "*", "/"
             ]
 
 operatorChar :: Parse Char
-operatorChar = oneOf "+-*/<>="
+operatorChar = oneOf "+-*/<>=:"
 
 endToken :: Parse ()
 endToken = skipMany $ (<?> "whitspace") $
@@ -170,7 +185,11 @@ endToken = skipMany $ (<?> "whitspace") $
                 *> putState True
 
 tok :: String -> Parse a -> Parse a
-tok name p = lookAhead p *> putState False *> p <* endToken <?> name
+tok name p = try $ (lookAhead p
+                      *> putState False
+                      *> p
+                      <* endToken
+                      <?> name)
 
 opSpace :: Char -> Bool -> Parse ()
 opSpace c s = do afterSpace <- getState
