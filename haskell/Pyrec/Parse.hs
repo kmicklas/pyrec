@@ -63,10 +63,10 @@ funStmt = (kw "fun" *>) $
                     <* end
 
 typeParams :: Parse [Id]
-typeParams = angleNoSpace *> sepBy iden (op ",") <* op ">"
+typeParams = angleNoSpace *> sepBy iden (op ",") <* bracket '>'
 
 params :: Parse [Bind Id]
-params = parenNoSpace *> sepBy idenBind (op ",") <* closeParen
+params = parenNoSpace *> sepBy idenBind (op ",") <* bracket ')'
 
 bind :: (Parse a) -> Parse (Bind a)
 bind b = Bind <$> b <*> optionMaybe (op "::" *> type_)
@@ -86,8 +86,8 @@ appVal = do vn@(Node p v) <- val
   where combine p f (Right vargs) = Node p $ App  f vargs
         combine p f (Left  targs) = Node p $ AppT f targs
         args = vapp <|> tapp
-        vapp = Right <$> (parenNoSpace *> sepBy expr  (op ",") <* closeParen)
-        tapp = Left  <$> (angleNoSpace *> sepBy type_ (op ",") <* closeAngle)
+        vapp = Right <$> (parenNoSpace *> sepBy expr  (op ",") <* bracket ')')
+        tapp = Left  <$> (angleNoSpace *> sepBy type_ (op ",") <* bracket '>')
 
 val :: Parse (Node Expr)
 val = node $ Num <$> number <|>
@@ -109,17 +109,17 @@ parenExpr :: Parse Expr
 parenExpr = do parenWithSpace
                en@(Node _ e) <- expr
                option e $ TypeConstraint en <$> (op "::" *> type_)
-            <* closeParen
+            <* bracket ')'
 
 objExpr :: Parse Expr
-objExpr = op "{" *> (Obj <$> sepBy objField (op ",")) <* op "}"
+objExpr = bracket '{' *> (Obj <$> sepBy objField (op ",")) <* bracket '}'
 
 objField :: Parse (Node Field)
 objField = node $ do c <- option Immut (kw "mutable" *> pure Mut)
                      c <$> (Let <$> keyBind <* op ":" <*> expr)
 
 key :: Parse Key
-key = (Name <$> iden) <|> (op "[" *> (Dynamic <$> expr) <* op "]")
+key = (Name <$> iden) <|> (bracket '[' *> (Dynamic <$> expr) <* bracket ']')
 
 begin :: Parse ()
 begin = op ":"
@@ -196,6 +196,7 @@ opSpace c s = do afterSpace <- getState
                  if s == afterSpace
                  then char c >> putState False
                  else parserZero
+                 endToken
 
 parenWithSpace = opSpace '(' True
 parenNoSpace = opSpace '(' False
@@ -205,8 +206,3 @@ angleNoSpace = opSpace '<' False
 
 bracket :: Char -> Parse ()
 bracket c = char c >> putState False >> endToken
-
-openParen  = bracket '('
-closeParen = bracket ')'
-openAngle  = bracket '<'
-closeAngle = bracket '>'
