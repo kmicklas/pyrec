@@ -1,4 +1,4 @@
-{-# LANGUAGE FlexibleInstances, ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleInstances #-}
 module Pyrec.PrettyPrint where
 
 import           Prelude             hiding (lines)
@@ -50,7 +50,7 @@ sblock :: [Node Statement] -> String
 sblock = lines . fmap show
 
 instance Show Statement where
-  show s = case s of
+  show = \case
     (ExprStmt   e)   ->  show e
     (LetStmt letd)   ->           show letd
     (VarStmt letd)   -> "var " ++ show letd
@@ -73,7 +73,7 @@ instance Show Variant where
   show (Variant id binds) = "|  " ++ show id ++ (parenList $ show <$> binds)
 
 instance Show Type where
-  show t = case t of
+  show = \case
     (TIdent id)         -> show id
     (TFun   params ret) -> (parenList $ show <$> params) ++ show ret
     (TParam params ret) -> (angleList $ show <$> params) ++ show ret
@@ -83,7 +83,7 @@ instance Show (Let Id)  where
   show (Let bind expr) = show bind ++ " = " ++ show expr
 
 instance Show Expr where
-  show e = case e of
+  show = \case
     (Num   d)   -> show d
     (Str   s)   -> show s
     (Ident i)   -> show i
@@ -130,7 +130,7 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
     bl' = bl   bl'  resugarB ty' ex'
 
     resugarE :: IR.Expr bt bn id ty ex -> Expr
-    resugarE e = case e of
+    resugarE = \case
       (IR.Num n)     -> Num n
       (IR.Str s)     -> Str s
       (IR.Ident i)   -> Ident $ id' i
@@ -147,20 +147,20 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
       (IR.Extend obj f v) -> undefined
       (IR.Access obj f)   -> undefined
 
-      (IR.Let   _ _)   -> Block $ resugarB e
-      (IR.Graph _ _)   -> Block $ resugarB e
-      (IR.Assign _ _)  -> Block $ resugarB e
+      e@(IR.Let   _ _)   -> Block $ resugarB e
+      e@(IR.Graph _ _)   -> Block $ resugarB e
+      e@(IR.Assign _ _)  -> Block $ resugarB e
 
     resugarB :: IR.Expr bt bn id ty ex -> Block
-    resugarB e = case e of
+    resugarB = \case
       (IR.Let d r)       -> convDecl d                         : bl' r
       (IR.Graph decls r) -> (dmn $ Graph $ convDecl <$> decls) : bl' r
       (IR.Assign i e)    -> [dmn $ AssignStmt (id' i) $ dmn $ ex' e]
 
-      _                  -> [dmn $ ExprStmt $ dmn $ resugarE e]
+      e                  -> [dmn $ ExprStmt $ dmn $ resugarE e]
 
     convDecl :: IR.Decl bt bn ex -> Node Statement
-    convDecl d = dmn $ case d of
+    convDecl = dmn . \case
       (IR.Data b vs)   -> Data (bn' b) Nothing $ variants <$> vs
       (IR.Def  dt b v) -> k $ Let (bt' b) (dmn $ ex' v)
         where k = case dt of IR.Val -> LetStmt
@@ -170,7 +170,7 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
     variants (IR.Variant b ps) = Variant (bn' b) $ bt' <$> fromMaybe [] ps
 
     resugarT :: IR.Type bn id ty -> Type
-    resugarT t = case t of
+    resugarT = \case
       (IR.TIdent i)          -> TIdent $ id' i
       (IR.TFun   types  ret) -> TFun   (ty' <$> types)  $ ty' ret
       (IR.TParam params ret) -> TParam (bn'  <$> params) $ ty' ret
@@ -190,13 +190,13 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
     (\_           (D.BN l i)   -> Node l i)
     (\_           i            -> dmn i)
     (\_  qT _  _  (D.T t)      -> qT t)
-    (\cE qE cT _  e            -> case e of
+    (\cE qE cT _               -> \case
         (D.E _ D.TUnknown e) -> qE e
         (D.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t
         (D.Constraint _ t e) -> TypeConstraint (dmn $ cE e) $ dmn $ cT t)
-    (\_  qB _ cE  e               -> case e of
+    (\_  qB _ cE               -> \case
         (D.E _ _ e)          -> qB e
-        _                    -> [dmn $ ExprStmt $ dmn $ cE e])
+        e                    -> [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show D.Expr where show = show . convDB
 instance Show D.Type where show = show . convDT
@@ -207,12 +207,12 @@ instance Show D.Type where show = show . convDT
     (\_           (D.BN l i)   -> Node l i)
     (\_           i            -> dmn $ C.getId i)
     (\_  _  _  _  t            -> convDT t) -- D.T uses D.Id, for better or worse
-    (\_  qE _  _  e            -> case e of
+    (\_  qE _  _               -> \case
         (C.E _ D.TUnknown e) -> qE e
         (C.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t)
-    (\_  qB _ cE  e               -> case e of
+    (\_  qB _ cE               -> \case
         (C.E _ _ e)          -> qB e
-        _                    -> [dmn $ ExprStmt $ dmn $ cE e])
+        e                    -> [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show C.Expr where show = show . convCB
 
@@ -222,30 +222,30 @@ instance Show C.Expr where show = show . convCB
     (\_           (D.BN    l i)   -> Node l i)
     (\_           (R.Bound l i)   -> Node l i)
     (\_  _  _  _  t               -> convDT t) -- D.T uses D.Id, for better or worse
-    (\_  qE _  _  e               -> case e of
+    (\_  qE _  _                  -> \case
         (R.E _ D.TUnknown e) -> qE e
         (R.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t
         (R.Error          _) -> Ident $ dmn "__BOMB")
-    (\_  qB _ cE  e               -> case e of
+    (\_  qB _ cE                  -> \case
         (R.E _ _ e)          -> qB e
-        _                    -> [dmn $ ExprStmt $ dmn $ cE e])
+        e                    -> [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show R.Expr where show = show . convRB
 
 
 
 instance Show D.TypeError where
-  show e = case e of
+  show = \case
     D.TypeMismatch exp got -> "Expected " ++ show exp ++ ", got " ++ show got
     D.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ show ty
 
 instance Show D.Error where
-  show e = case e of
+  show = \case
     D.EndBlockWithDef    -> "The last element in a block must be an expression"
     D.SameLineStatements -> "Two statements should never be put on the same line"
 
 instance Show R.Error where
-  show e = case e of
+  show = \case
     R.Earlier    error     -> show error
 
     R.UnboundId  ident     -> show ident ++ " is unbound"
@@ -260,7 +260,7 @@ instance Show R.Error where
     R.TypeError ty err -> show err ++ " in " ++ show ty
 
 instance Show R.TypeError where
-  show error = case error of
+  show = \case
     R.TEEarlier terror    -> show terror
 
     R.AmbiguousType        -> "ambiguous type ecountered"
