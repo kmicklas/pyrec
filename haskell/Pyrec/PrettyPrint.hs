@@ -234,18 +234,6 @@ instance Show R.Expr where show = show . convRB
 
 
 
-
-
-{-
-instance Show D.Type where
-  show t = case t of
-    (D.T t)               -> show t
-    D.TUnknown            -> "?"
-    (D.PartialObj fields) -> "{" ++ (intercalate ", " $ map f $ M.toList fields) ++ "}"
-      where f (k,v) = show k ++ " : " ++ show v
-    (D.TError e)          -> show e
--}
-
 instance Show D.TypeError where
   show e = case e of
     D.TypeMismatch exp got -> "Expected " ++ show exp ++ ", got " ++ show got
