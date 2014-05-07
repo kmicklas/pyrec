@@ -31,7 +31,7 @@ import_ = node $ do kw "import"
                       kw "as" >> ImportQualified name <$> iden
 
 block :: Parse Block
-block = many stmt
+block = Statements <$> many stmt
 
 stmt :: Parse (Node Statement)
 stmt = node $ try letStmt

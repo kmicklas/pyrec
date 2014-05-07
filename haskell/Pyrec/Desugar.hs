@@ -24,22 +24,23 @@ convModule :: Module -> DS D.Expr
 convModule (Module _ _ b) = convBlock b
 
 convBlock :: Block -> DS D.Expr
-convBlock stmts = case stmts of
-  []                           -> return $ error "empty block"
+convBlock (Statements stmts) = case stmts of
+  []                           -> return $ D.E undefined (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
   [Node p (ExprStmt e)]        -> convExpr e
   (Node p (ExprStmt e) : rest) ->
-    convBlock $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p)
-                                           Nothing) e)) : rest
+    recur $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p)
+                                                        Nothing) e)) : rest
   (Node p (LetStmt (Let bd e)) : rest) ->
     D.E p D.TUnknown <$>
       (IR.Let <$> (IR.Def IR.Val <$> convBind bd <*> convExpr e)
               <*> afterDef p rest)
     where afterDef p [] = do tell [Msg p D.EndBlockWithDef]
-                             convBlock []
+                             recur []
           afterDef p1 rest@(Node p2 _ : _) =
             do when (sourceLine p1 == sourceLine p2) $
                  tell [Msg p2 D.SameLineStatements]
-               convBlock rest
+               recur rest
+  where recur = convBlock . Statements
 
 convBind :: Bind Id -> DS D.BindT
 convBind (Bind (Node p id) ty) = D.BT p id <$> convMaybeType ty
@@ -64,7 +65,8 @@ convExpr (Node p e) = case e of
   Ident (Node _ id) -> return $ mkU $ IR.Ident id
 
   Fun Nothing Nothing Nothing     body -> convBlock $ body
-  Fun Nothing Nothing (Just retT) body -> convExpr  $ rebuild $ TypeConstraint (rebuild $ Block body) retT
+  Fun Nothing Nothing (Just retT) body ->
+    convExpr  $ rebuild $ TypeConstraint (rebuild $ Block body) retT
 
   Fun (Just tparams) Nothing       retT body -> mkT <$> t <*> body'
     where tparams' = mapM convBN tparams
@@ -79,7 +81,7 @@ convExpr (Node p e) = case e of
 
   Fun tparams params retT body ->
     convExpr $ rebuild $ Fun tparams Nothing Nothing
-                          $ [rebuild $ ExprStmt $ rebuild $ Fun Nothing params retT body]
+    $ Statements $ [rebuild $ ExprStmt $ rebuild $ Fun Nothing params retT body]
 
   App  f args -> fmap mkU $ IR.App  <$> convExpr f <*> sequence (convExpr <$> args)
   AppT f args -> fmap mkU $ IR.AppT <$> convExpr f <*> sequence (convType <$> args)

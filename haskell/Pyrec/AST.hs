@@ -38,7 +38,9 @@ data ModuleName
   | File String
   deriving (Eq, Ord)
 
-type Block = [Node Statement]
+newtype Block
+  = Statements [Node Statement]
+  deriving (Eq, Ord)
 
 data Statement
   = ExprStmt (Node Expr)

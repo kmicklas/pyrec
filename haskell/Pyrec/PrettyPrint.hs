@@ -46,28 +46,28 @@ instance Show n => Show (Node n) where
 instance Show (Bind Id) where
   show (Bind id ty) = show id ++ opt (show <$> ty)
 
-sblock :: [Node Statement] -> String
-sblock = lines . fmap show
-
 instance Show Statement where
   show = \case
     (ExprStmt   e)   ->  show e
     (LetStmt letd)   ->           show letd
     (VarStmt letd)   -> "var " ++ show letd
     (AssignStmt i e) -> show i ++ " := " ++ show e
-    (Graph decls)    -> "graph:" ++ sblock decls
+    (Graph decls)    -> "graph:" ++ show decls
 
     (FunStmt tps id ps ret body) ->
       "fun"
       ++ (opt $ angleList <$> fmap show <$> tps)
       ++ " " ++ show id
       ++ (opt $ parenList <$> fmap show <$> ps)
-      ++ (opt $ (" -> " ++) . show <$> ret) ++ ":" ++ sblock body
+      ++ (opt $ (" -> " ++) . show <$> ret) ++ ":" ++ show body
 
     (Data id params variants) ->
       "data " ++ show id
       ++ (opt $ angleList <$> fmap show <$> params) ++ ":"
       ++ (lines $ show <$> variants)
+
+instance Show Block where
+  show (Statements  stmts) = lines $ fmap show stmts
 
 instance Show Variant where
   show (Variant id binds) = "|  " ++ show id ++ (parenList $ show <$> binds)
@@ -94,16 +94,16 @@ instance Show Expr where
     (Fun tps ps retT body) -> "fun"
                               ++ (opt $ angleList <$> fmap show <$> tps)
                               ++ (opt $ parenList <$> fmap show <$> ps)
-                              ++ (opt $ (" -> " ++) . show <$> retT) ++ ":" ++ sblock body
+                              ++ (opt $ (" -> " ++) . show <$> retT) ++ ":" ++ show body
 
-    (Block block)          -> "block:" ++ sblock block
+    (Block block)          -> "block:" ++ show block
     (TypeConstraint e t)   -> "(" ++ show e ++ " :: " ++ show t ++ ")"
 
 
 instance Show Module where
   show (Module provide imports block) = show provide
                                         ++ "\n\n" ++ (unlines $ show <$> imports)
-                                        ++ "\n\n" ++ sblock block
+                                        ++ "\n\n" ++ show block
 
 instance Show Provide where  show _ = ""
 instance Show Import where  show _ = ""
@@ -152,12 +152,13 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
       e@(IR.Assign _ _)  -> Block $ resugarB e
 
     resugarB :: IR.Expr bt bn id ty ex -> Block
-    resugarB = \case
-      (IR.Let d r)       -> convDecl d                         : bl' r
-      (IR.Graph decls r) -> (dmn $ Graph $ convDecl <$> decls) : bl' r
+    resugarB = Statements . \case
+      (IR.Let d r)       -> convDecl d                                            : bl'' r
+      (IR.Graph decls r) -> (dmn $ Graph $ Statements $ convDecl <$> decls) : bl'' r
       (IR.Assign i e)    -> [dmn $ AssignStmt (id' i) $ dmn $ ex' e]
 
       e                  -> [dmn $ ExprStmt $ dmn $ resugarE e]
+      where bl'' = (\case (Statements stmts) -> stmts) . bl'
 
     convDecl :: IR.Decl bt bn ex -> Node Statement
     convDecl = dmn . \case
@@ -196,7 +197,7 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
         (D.Constraint _ t e) -> TypeConstraint (dmn $ cE e) $ dmn $ cT t)
     (\_  qB _ cE               -> \case
         (D.E _ _ e)          -> qB e
-        e                    -> [dmn $ ExprStmt $ dmn $ cE e])
+        e                    -> Statements $ [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show D.Expr where show = show . convDB
 instance Show D.Type where show = show . convDT
@@ -212,7 +213,7 @@ instance Show D.Type where show = show . convDT
         (C.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t)
     (\_  qB _ cE               -> \case
         (C.E _ _ e)          -> qB e
-        e                    -> [dmn $ ExprStmt $ dmn $ cE e])
+        e                    -> Statements $ [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show C.Expr where show = show . convCB
 
@@ -228,7 +229,7 @@ instance Show C.Expr where show = show . convCB
         (R.Error          _) -> Ident $ dmn "__BOMB")
     (\_  qB _ cE                  -> \case
         (R.E _ _ e)          -> qB e
-        e                    -> [dmn $ ExprStmt $ dmn $ cE e])
+        e                    -> Statements $ [dmn $ ExprStmt $ dmn $ cE e])
 
 instance Show R.Expr where show = show . convRB
 
