@@ -1,11 +1,11 @@
 {-# LANGUAGE FlexibleInstances #-}
 module Pyrec.PrettyPrint where
 
-import           Prelude             hiding (lines)
+import           Prelude
 
 import           Control.Applicative
 
-import           Data.List           hiding (lines)
+import           Data.List
 import qualified Data.Map            as M
 import           Data.Map                   (Map)
 import           Data.Maybe                 (fromMaybe)
@@ -35,17 +35,14 @@ angleList l = "<"  ++ intercalate ", " l ++ ">"
 curlyList :: [String] -> String
 curlyList l = "{"  ++ intercalate ", " l ++ "}"
 
-lines :: [String] -> String
-lines []  = ": ;"
-lines [l] = ": " ++ l ++ ";"
-lines l   = ":\n" ++ (concat $ fmap ("\n  "++) l) ++ "end"
+indentedLines :: [String] -> String
+indentedLines []  = ": ;"
+indentedLines [l] = ": " ++ l ++ ";"
+indentedLines l   = ":\n" ++ (concat $ fmap ("\n  "++) l) ++ "end"
 
 opt :: Maybe String -> String
 opt Nothing  = ""
 opt (Just i) = i
-
--- don't want to pp string for idents
-dropNode (Node _ n) = n
 
 instance PrettyPrint n => PrettyPrint (Node n) where
   pp (Node _ n) = pp n
@@ -56,14 +53,14 @@ instance PrettyPrint String where
 instance PrettyPrint e => PrettyPrint (Message e) where
   pp (Msg loc error) = show loc ++ ":\n" ++ pp error
 
-instance PrettyPrint (Bind Id) where
-  pp (Bind id ty) = dropNode id ++ (opt $ (" :: " ++) <$> pp <$> ty)
+instance PrettyPrint id => PrettyPrint (Bind id) where
+  pp (Bind id ty) = pp id ++ (opt $ (" :: " ++) <$> pp <$> ty)
 
 instance PrettyPrint Statement where
   pp = \case
     (ExprStmt   e)   ->  pp e
-    (LetStmt letd)   ->           pp letd
-    (VarStmt letd)   -> "var " ++ pp letd
+    (LetStmt letd)   ->           plet letd
+    (VarStmt letd)   -> "var " ++ plet letd
     (AssignStmt i e) -> pp i ++ " := " ++ pp e
     (Graph decls)    -> "graph" ++ pp decls
 
@@ -77,32 +74,37 @@ instance PrettyPrint Statement where
     (Data id params variants) ->
       "data " ++ pp id
       ++ (opt $ angleList <$> fmap pp <$> params)
-      ++ (lines $ pp <$> variants)
+      ++ (indentedLines $ pp <$> variants)
 
 instance PrettyPrint Block where
-  pp (Statements stmts) = lines $ fmap pp stmts
+  pp (Statements stmts) = indentedLines $ fmap pp stmts
 
 instance PrettyPrint Variant where
   pp (Variant id binds) = "|  " ++ pp id ++ (parenList $ pp <$> binds)
 
 instance PrettyPrint Type where
   pp = \case
-    (TIdent id)         -> dropNode $ id
+    (TIdent id)         -> pp $ id
     (TFun   params ret) -> (parenList $ pp <$> params) ++ " -> " ++ pp ret
     (TParam params ret) -> (angleList $ pp <$> params) ++           pp ret
     (TObject fields)    -> curlyList $ pp <$> fields
 
-instance PrettyPrint (Let Id)  where
-  pp (Let bind expr) = pp bind ++ " = " ++ pp expr
+plet   :: Let Id  -> String
+pfield :: Let Key -> String
+(plet, pfield) = (pp' " = ", pp' " : ")
+  where pp' token (Let bind expr) = pp bind ++ " = " ++ pp expr
 
 instance PrettyPrint Expr where
   pp = \case
     (Num   d)   -> show d
     (Str   s)   -> show s
-    (Ident i)   -> dropNode $ i
+    (Ident i)   -> pp $ i
 
     (App  e es) -> (pp e ++) $ parenList $ pp <$> es
     (AppT e ts) -> (pp e ++) $ angleList $ pp <$> ts
+
+    (UnOp  tok e)     -> tok ++ pp e
+    (BinOp tok e1 e2) -> pp e1 ++ " " ++ tok ++ " " ++ pp e2
 
     (Fun tps ps retT body) -> "fun"
                               ++ (opt $ angleList <$> fmap pp <$> tps)
@@ -112,6 +114,17 @@ instance PrettyPrint Expr where
     (Block block)          -> "block" ++ pp block
     (TypeConstraint e t)   -> "(" ++ pp e ++ " :: " ++ pp t ++ ")"
 
+    (Obj fields)           -> curlyList $ pp <$> fields
+
+instance PrettyPrint Field where
+  pp = \case
+    Immut l -> pfield l
+    Mut   l -> "mutable " ++ pfield l
+
+instance PrettyPrint Key where
+  pp = \case
+    Name    id  -> pp id
+    Dynamic exp -> "mutable " ++ pp exp
 
 instance PrettyPrint Module where
   pp (Module provide imports block) = pp provide
@@ -126,7 +139,7 @@ dmn q = Node (newPos "derp-dummy" 0 0) q
 
 mkFunctions ::
   forall bt bn id ty ex
-  .  ((bt -> Bind Id)                                       -> (ty -> Type)                  -> bt -> Bind Id)
+  .  ((bt -> Bind Id)                                    -> (ty -> Type)                  -> bt -> Bind Id)
   -> ((bn -> Id)                                                                          -> bn -> Id)
   -> ((id -> Id)                                                                          -> id -> Id)
   -> ((ty -> Type)  -> (IR.Type bn id ty       -> Type)  -> (ex -> Expr) -> (ex -> Block) -> ty -> Type)
@@ -225,8 +238,7 @@ instance PrettyPrint D.Type where pp = pp . convDT
         (C.E _ D.TUnknown e) -> qE e
         (C.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ convDT t)
     (\_  qB _ cE               -> \case
-        (C.E _ _ e)          -> qB e
-        e                    -> Statements $ [dmn $ ExprStmt $ dmn $ cE e])
+        (C.E _ _ e)          -> qB e)
 
 instance PrettyPrint C.Expr where pp = pp . convCB
 
