@@ -5,8 +5,6 @@ import Control.Applicative
 import Control.Monad
 import Control.Monad.State
 
-import Data.Functor.Identity
-
 import qualified Data.Map as M
 import Data.Map (Map)
 
@@ -15,7 +13,7 @@ import Data.IntMap (IntMap)
 
 import Data.Maybe
 
-import Pyrec.AST
+import Pyrec.IR
 
 type Env id = Map id (Int, DefType)
 
