@@ -94,7 +94,8 @@ val = node $ Num <$> number <|>
              Ident  <$> iden <|>
              funExpr <|>
              parenExpr <|>
-             objExpr
+             objExpr <|>
+             ifExpr
 
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
@@ -120,6 +121,15 @@ objField = node $ option Immut (kw "mutable" *> pure Mut)
 
 key :: Parse Key
 key = (Name <$> iden) <|> (bracket '[' *> (Dynamic <$> expr) <* bracket ']')
+
+ifExpr :: Parse Expr
+ifExpr = (kw "if" *>) $ If <$> ((:) <$> branch
+                                    <*> (many $ kw "else if" *> branch))
+                           <*> optionMaybe (kw "else:" *> block)
+                           <* end
+
+branch :: Parse Branch
+branch = Branch <$> expr <* begin <*> block
 
 begin :: Parse ()
 begin = op ":"
