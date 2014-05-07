@@ -115,8 +115,8 @@ objExpr :: Parse Expr
 objExpr = bracket '{' *> (Obj <$> sepBy objField (op ",")) <* bracket '}'
 
 objField :: Parse (Node Field)
-objField = node $ do c <- option Immut (kw "mutable" *> pure Mut)
-                     c <$> (Let <$> keyBind <* op ":" <*> expr)
+objField = node $ option Immut (kw "mutable" *> pure Mut)
+                    <*> (Let <$> keyBind <* op ":" <*> expr)
 
 key :: Parse Key
 key = (Name <$> iden) <|> (bracket '[' *> (Dynamic <$> expr) <* bracket ']')
