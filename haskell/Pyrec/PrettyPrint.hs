@@ -35,16 +35,18 @@ lines  [] = ": ;"
 lines [l] = ": " ++ show l ++ ";"
 lines   l = ":\n" ++ (concat $ fmap ("\n  "++) l) ++ "end"
 
-opt :: Show n => Maybe n -> String
+opt :: Maybe String -> String
 opt Nothing  = ""
-opt (Just i) = show i
+opt (Just i) = i
 
+-- don't want to show string for idents
+dropNode (Node _ n) = n
 
 instance Show n => Show (Node n) where
   show (Node _ n) = show n
 
 instance Show (Bind Id) where
-  show (Bind id ty) = show id ++ opt (show <$> ty)
+  show (Bind id ty) = dropNode id ++ (opt $ (" :: " ++) <$> show <$> ty)
 
 instance Show Statement where
   show = \case
@@ -52,18 +54,18 @@ instance Show Statement where
     (LetStmt letd)   ->           show letd
     (VarStmt letd)   -> "var " ++ show letd
     (AssignStmt i e) -> show i ++ " := " ++ show e
-    (Graph decls)    -> "graph:" ++ show decls
+    (Graph decls)    -> "graph" ++ show decls
 
     (FunStmt tps id ps ret body) ->
       "fun"
       ++ (opt $ angleList <$> fmap show <$> tps)
       ++ " " ++ show id
       ++ (opt $ parenList <$> fmap show <$> ps)
-      ++ (opt $ (" -> " ++) . show <$> ret) ++ ":" ++ show body
+      ++ (opt $ (" -> " ++) . show <$> ret) ++ show body
 
     (Data id params variants) ->
       "data " ++ show id
-      ++ (opt $ angleList <$> fmap show <$> params) ++ ":"
+      ++ (opt $ angleList <$> fmap show <$> params)
       ++ (lines $ show <$> variants)
 
 instance Show Block where
@@ -74,9 +76,9 @@ instance Show Variant where
 
 instance Show Type where
   show = \case
-    (TIdent id)         -> show id
-    (TFun   params ret) -> (parenList $ show <$> params) ++ show ret
-    (TParam params ret) -> (angleList $ show <$> params) ++ show ret
+    (TIdent id)         -> dropNode $ id
+    (TFun   params ret) -> (parenList $ show <$> params) ++ " -> " ++ show ret
+    (TParam params ret) -> (angleList $ show <$> params) ++           show ret
     (TObject fields)    -> curlyList $ show <$> fields
 
 instance Show (Let Id)  where
@@ -86,7 +88,7 @@ instance Show Expr where
   show = \case
     (Num   d)   -> show d
     (Str   s)   -> show s
-    (Ident i)   -> show i
+    (Ident i)   -> dropNode $ i
 
     (App  e es) -> (show e ++) $ parenList $ show <$> es
     (AppT e ts) -> (show e ++) $ angleList $ show <$> ts
@@ -94,9 +96,9 @@ instance Show Expr where
     (Fun tps ps retT body) -> "fun"
                               ++ (opt $ angleList <$> fmap show <$> tps)
                               ++ (opt $ parenList <$> fmap show <$> ps)
-                              ++ (opt $ (" -> " ++) . show <$> retT) ++ ":" ++ show body
+                              ++ (opt $ (" -> " ++) . show <$> retT) ++ show body
 
-    (Block block)          -> "block:" ++ show block
+    (Block block)          -> "block" ++ show block
     (TypeConstraint e t)   -> "(" ++ show e ++ " :: " ++ show t ++ ")"
 
 
