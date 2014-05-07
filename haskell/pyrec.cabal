@@ -17,19 +17,67 @@ extra-source-files:       ../runtime/*
 --  type:                 git
 --  location:             https://github.com/
 
-executable pyrec
-
+library
   hs-source-dirs:         .
+  default-language:       Haskell2010
+  default-extensions:     LambdaCase
+    ,                     ScopedTypeVariables
+
+  exposed-modules:        Pyrec
+
+    ,                     Pyrec.Parse
+    ,                     Pyrec.Desugar
+    ,                     Pyrec.Check
+    ,                     Pyrec.Report
+    ,                     Pyrec.Compile
+    ,                     Pyrec.Emit
+
+    ,                     Pyrec.Interp
+
+    ,                     Pyrec.SSA
+    ,                     Pyrec.AST
+    ,                     Pyrec.IR
+    ,                     Pyrec.IR.Check
+    ,                     Pyrec.IR.Core
+    ,                     Pyrec.IR.Desugar
+
+    ,                     Pyrec.PrettyPrint
+    ,                     Pyrec.Error
+    ,                     Pyrec.Misc
+
+  build-depends:          base        >=4 && <5
+    ,                     mtl         >=2
+    ,                     containers
+    ,                     parsec      >=3
+    ,                     hashable
+
+executable pyrec
+  hs-source-dirs:         exe
   default-language:       Haskell2010
   default-extensions:     LambdaCase
     ,                     ScopedTypeVariables
 
   main-is:                Main.hs
 
-  build-depends:          base        >=4 && <5
+  build-depends:          pyrec
+    ,                     base        >=4 && <5
     ,                     mtl         >=2
     ,                     containers
+    ,                     parsec      >=3
     ,                     directory
     ,                     filepath
-    ,                     parsec      >=3
-    ,                     hashable
+
+test-suite spec
+  type:                   exitcode-stdio-1.0
+
+  hs-source-dirs:         test-src
+  default-language:       Haskell2010
+  default-extensions:     LambdaCase
+    ,                     ScopedTypeVariables
+
+  main-is:                Spec.hs
+
+  build-depends:          base
+    ,                     hspec >= 1.3
+    ,                     QuickCheck
+    ,                     pyrec

@@ -27,8 +27,6 @@ pyrec:
 	cd haskell; \
 	cabal install --bindir=..
 
-
-
 clean:
 	rm -f pyrec *.lbc *.bc *.ll program
 

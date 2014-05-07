@@ -13,6 +13,7 @@ cabal-dev
 .cabal-sandbox/
 cabal.sandbox.config
 cabal.config
+package.conf.inplace
 
 # LLVM Junk
 *.bc
