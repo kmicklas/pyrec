@@ -90,8 +90,9 @@ appVal = do vn@(Node p v) <- val
         tapp = Left  <$> (angleNoSpace *> sepBy type_ (op ",") <* bracket '>')
 
 val :: Parse (Node Expr)
-val = node $ Num <$> number <|>
-             Ident  <$> iden <|>
+val = node $ Ident  <$> iden <|>
+             Num <$> number <|>
+             Str <$> str <|>
              funExpr <|>
              parenExpr <|>
              objExpr <|>
@@ -147,6 +148,9 @@ node p = Node <$> getPosition <*> p
 
 number :: Parse Double
 number = tok "number" $ read <$> many1 digit
+
+str :: Parse String -- TODO: Fix
+str = tok "string" $ char '"' *> (many $ noneOf ['"']) <* char '"'
 
 iden :: Parse Id
 iden = tok "identifier" $ node $ try $
