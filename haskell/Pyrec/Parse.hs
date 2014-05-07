@@ -78,7 +78,11 @@ type_ :: Parse (Node Type)
 type_ = node $ TIdent <$> iden
 
 expr :: Parse (Node Expr)
-expr = appVal
+expr = do first@(Node l _) <- appVal
+          rest <- many $ (,) <$> choice binOps <*> appVal
+          if null rest
+          then return first
+          else return $ Node l $ BinOp first rest
 
 appVal :: Parse (Node Expr)
 appVal = do vn@(Node p v) <- val
@@ -137,6 +141,15 @@ begin = op ":"
 
 end :: Parse ()
 end = kw "end" <|> op ";"
+
+bop :: (String -> Parse ()) -> String -> Parse String
+bop kind word = kind word *> pure word
+
+binOps = [ bop op "+", bop op "-", bop op "*", bop op "/"
+         , bop op "<=", bop op ">=", bop op "=="
+         , bop op "<>", bop op "<", bop op ">"
+         , bop kw "and", bop kw "or"
+         ]
 
 none :: Parse ()
 none = return ()

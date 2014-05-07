@@ -77,7 +77,7 @@ data Expr
   | AppT (Node Expr) [Node Type]
 
   | UnOp String (Node Expr)
-  | BinOp String (Node Expr) (Node Expr)
+  | BinOp (Node Expr) [(String, Node Expr)]
 
   | Fun (Maybe [Id]) (Maybe [Bind Id]) (Maybe (Node Type)) Block
   | Block Block
