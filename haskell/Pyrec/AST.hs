@@ -75,7 +75,7 @@ data Expr
 
   | App  (Node Expr) [Node Expr]
   | AppT (Node Expr) [Node Type]
-
+  | Dot  (Node Expr) Key
   | UnOp String (Node Expr)
   | BinOp (Node Expr) [(String, Node Expr)]
 

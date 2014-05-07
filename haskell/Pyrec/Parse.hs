@@ -84,14 +84,21 @@ expr = do first@(Node l _) <- appVal
           then return first
           else return $ Node l $ BinOp first rest
 
+pfoldl :: Parse a -> Parse (a -> a) -> Parse a
+pfoldl p f = foldl (flip ($)) <$> p <*> many f
+
 appVal :: Parse (Node Expr)
-appVal = do vn@(Node p v) <- val
-            foldl (combine p) vn <$> many args
-  where combine p f (Right vargs) = Node p $ App  f vargs
-        combine p f (Left  targs) = Node p $ AppT f targs
-        args = vapp <|> tapp
-        vapp = Right <$> (parenNoSpace *> sepBy expr  (op ",") <* bracket ')')
-        tapp = Left  <$> (angleNoSpace *> sepBy type_ (op ",") <* bracket '>')
+appVal = pfoldl val args
+  where args = vapp <|> tapp <|> dot
+        parseArgs con arg = do a <- arg
+                               return $ \ f@(Node l _) -> Node l $ con f a
+        vapp = parseArgs App $ parenNoSpace
+                                 *> sepBy expr  (op ",")
+                                 <* bracket ')'
+        tapp = parseArgs AppT $ angleNoSpace
+                                  *> sepBy type_ (op ",")
+                                  <* bracket '>'
+        dot  = parseArgs Dot $ op "." *> key
 
 val :: Parse (Node Expr)
 val = node $ Ident  <$> iden <|>
@@ -198,12 +205,8 @@ idenChar = alphaNum <|> char '-'
 
 op word = tok word $ string word >> notFollowedBy operatorChar
 
-operators = [ "+", "-", "*", "/"
-            , "<=", ">=", "==", "<>", "<", ">"
-            ]
-
 operatorChar :: Parse Char
-operatorChar = oneOf "+-*/<>=:"
+operatorChar = oneOf "+-*/<>=:."
 
 endToken :: Parse ()
 endToken = skipMany $ (<?> "whitspace") $
