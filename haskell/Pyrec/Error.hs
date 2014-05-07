@@ -11,7 +11,3 @@ import Data.Traversable
 data Message error
   = Msg SourcePos error
   deriving (Eq, Functor, Foldable, Traversable)
-
-instance Show error => Show (Message error) where
-  show (Msg loc error) =
-    show loc ++ ":\n" ++ show error

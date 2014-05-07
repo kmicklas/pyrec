@@ -52,7 +52,7 @@ pretty exit either = case either of
     when exit Exit.exitFailure
 
   (Right (llvm, errs)) -> do
-    forM_ errs $ IO.hPutStrLn IO.stderr . show
+    forM_ errs $ IO.hPutStrLn IO.stderr . pp
     IO.hPutStr IO.stdout llvm
     when exit Exit.exitSuccess
 

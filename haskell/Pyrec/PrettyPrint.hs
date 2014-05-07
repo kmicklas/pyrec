@@ -21,6 +21,11 @@ import qualified Pyrec.IR.Desugar    as D
 import qualified Pyrec.IR.Check      as C
 import qualified Pyrec.IR.Core       as R
 
+import           Pyrec.Error
+
+class PrettyPrint a where
+  pp :: a -> String
+
 parenList :: [String] -> String
 parenList l = "("  ++ intercalate ", " l ++ ")"
 
@@ -31,84 +36,90 @@ curlyList :: [String] -> String
 curlyList l = "{"  ++ intercalate ", " l ++ "}"
 
 lines :: [String] -> String
-lines  [] = ": ;"
-lines [l] = ": " ++ show l ++ ";"
-lines   l = ":\n" ++ (concat $ fmap ("\n  "++) l) ++ "end"
+lines []  = ": ;"
+lines [l] = ": " ++ l ++ ";"
+lines l   = ":\n" ++ (concat $ fmap ("\n  "++) l) ++ "end"
 
 opt :: Maybe String -> String
 opt Nothing  = ""
 opt (Just i) = i
 
--- don't want to show string for idents
+-- don't want to pp string for idents
 dropNode (Node _ n) = n
 
-instance Show n => Show (Node n) where
-  show (Node _ n) = show n
+instance PrettyPrint n => PrettyPrint (Node n) where
+  pp (Node _ n) = pp n
 
-instance Show (Bind Id) where
-  show (Bind id ty) = dropNode id ++ (opt $ (" :: " ++) <$> show <$> ty)
+instance PrettyPrint String where
+  pp s = s
 
-instance Show Statement where
-  show = \case
-    (ExprStmt   e)   ->  show e
-    (LetStmt letd)   ->           show letd
-    (VarStmt letd)   -> "var " ++ show letd
-    (AssignStmt i e) -> show i ++ " := " ++ show e
-    (Graph decls)    -> "graph" ++ show decls
+instance PrettyPrint e => PrettyPrint (Message e) where
+  pp (Msg loc error) = show loc ++ ":\n" ++ pp error
+
+instance PrettyPrint (Bind Id) where
+  pp (Bind id ty) = dropNode id ++ (opt $ (" :: " ++) <$> pp <$> ty)
+
+instance PrettyPrint Statement where
+  pp = \case
+    (ExprStmt   e)   ->  pp e
+    (LetStmt letd)   ->           pp letd
+    (VarStmt letd)   -> "var " ++ pp letd
+    (AssignStmt i e) -> pp i ++ " := " ++ pp e
+    (Graph decls)    -> "graph" ++ pp decls
 
     (FunStmt tps id ps ret body) ->
       "fun"
-      ++ (opt $ angleList <$> fmap show <$> tps)
-      ++ " " ++ show id
-      ++ (opt $ parenList <$> fmap show <$> ps)
-      ++ (opt $ (" -> " ++) . show <$> ret) ++ show body
+      ++ (opt $ angleList <$> fmap pp <$> tps)
+      ++ " " ++ pp id
+      ++ (opt $ parenList <$> fmap pp <$> ps)
+      ++ (opt $ (" -> " ++) . pp <$> ret) ++ pp body
 
     (Data id params variants) ->
-      "data " ++ show id
-      ++ (opt $ angleList <$> fmap show <$> params)
-      ++ (lines $ show <$> variants)
+      "data " ++ pp id
+      ++ (opt $ angleList <$> fmap pp <$> params)
+      ++ (lines $ pp <$> variants)
 
-instance Show Block where
-  show (Statements  stmts) = lines $ fmap show stmts
+instance PrettyPrint Block where
+  pp (Statements stmts) = lines $ fmap pp stmts
 
-instance Show Variant where
-  show (Variant id binds) = "|  " ++ show id ++ (parenList $ show <$> binds)
+instance PrettyPrint Variant where
+  pp (Variant id binds) = "|  " ++ pp id ++ (parenList $ pp <$> binds)
 
-instance Show Type where
-  show = \case
+instance PrettyPrint Type where
+  pp = \case
     (TIdent id)         -> dropNode $ id
-    (TFun   params ret) -> (parenList $ show <$> params) ++ " -> " ++ show ret
-    (TParam params ret) -> (angleList $ show <$> params) ++           show ret
-    (TObject fields)    -> curlyList $ show <$> fields
+    (TFun   params ret) -> (parenList $ pp <$> params) ++ " -> " ++ pp ret
+    (TParam params ret) -> (angleList $ pp <$> params) ++           pp ret
+    (TObject fields)    -> curlyList $ pp <$> fields
 
-instance Show (Let Id)  where
-  show (Let bind expr) = show bind ++ " = " ++ show expr
+instance PrettyPrint (Let Id)  where
+  pp (Let bind expr) = pp bind ++ " = " ++ pp expr
 
-instance Show Expr where
-  show = \case
+instance PrettyPrint Expr where
+  pp = \case
     (Num   d)   -> show d
     (Str   s)   -> show s
     (Ident i)   -> dropNode $ i
 
-    (App  e es) -> (show e ++) $ parenList $ show <$> es
-    (AppT e ts) -> (show e ++) $ angleList $ show <$> ts
+    (App  e es) -> (pp e ++) $ parenList $ pp <$> es
+    (AppT e ts) -> (pp e ++) $ angleList $ pp <$> ts
 
     (Fun tps ps retT body) -> "fun"
-                              ++ (opt $ angleList <$> fmap show <$> tps)
-                              ++ (opt $ parenList <$> fmap show <$> ps)
-                              ++ (opt $ (" -> " ++) . show <$> retT) ++ show body
+                              ++ (opt $ angleList <$> fmap pp <$> tps)
+                              ++ (opt $ parenList <$> fmap pp <$> ps)
+                              ++ (opt $ (" -> " ++) . pp <$> retT) ++ pp body
 
-    (Block block)          -> "block" ++ show block
-    (TypeConstraint e t)   -> "(" ++ show e ++ " :: " ++ show t ++ ")"
+    (Block block)          -> "block" ++ pp block
+    (TypeConstraint e t)   -> "(" ++ pp e ++ " :: " ++ pp t ++ ")"
 
 
-instance Show Module where
-  show (Module provide imports block) = show provide
-                                        ++ "\n\n" ++ (unlines $ show <$> imports)
-                                        ++ "\n\n" ++ show block
+instance PrettyPrint Module where
+  pp (Module provide imports block) = pp provide
+                                        ++ "\n\n" ++ (unlines $ pp <$> imports)
+                                        ++ "\n\n" ++ pp block
 
-instance Show Provide where  show _ = ""
-instance Show Import where  show _ = ""
+instance PrettyPrint Provide where  pp _ = ""
+instance PrettyPrint Import where  pp _ = ""
 
 
 dmn q = Node (newPos "derp-dummy" 0 0) q
@@ -201,8 +212,8 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
         (D.E _ _ e)          -> qB e
         e                    -> Statements $ [dmn $ ExprStmt $ dmn $ cE e])
 
-instance Show D.Expr where show = show . convDB
-instance Show D.Type where show = show . convDT
+instance PrettyPrint D.Expr where pp = pp . convDB
+instance PrettyPrint D.Type where pp = pp . convDT
 
 (convCE, convCB, _) =
   mkFunctions
@@ -217,7 +228,7 @@ instance Show D.Type where show = show . convDT
         (C.E _ _ e)          -> qB e
         e                    -> Statements $ [dmn $ ExprStmt $ dmn $ cE e])
 
-instance Show C.Expr where show = show . convCB
+instance PrettyPrint C.Expr where pp = pp . convCB
 
 (convRE, convRB, _) =
   mkFunctions
@@ -233,38 +244,40 @@ instance Show C.Expr where show = show . convCB
         (R.E _ _ e)          -> qB e
         e                    -> Statements $ [dmn $ ExprStmt $ dmn $ cE e])
 
-instance Show R.Expr where show = show . convRB
+instance PrettyPrint R.Expr where pp = pp . convRB
 
 
 
-instance Show D.TypeError where
-  show = \case
-    D.TypeMismatch exp got -> "Expected " ++ show exp ++ ", got " ++ show got
-    D.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ show ty
+instance PrettyPrint D.TypeError where
+  pp = \case
+    D.TypeMismatch exp got -> "Expected " ++ pp exp ++ ", got " ++ pp got
+    D.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ pp ty
 
-instance Show D.Error where
-  show = \case
+instance PrettyPrint D.Error where
+  pp = \case
     D.EndBlockWithDef    -> "The last element in a block must be an expression"
     D.SameLineStatements -> "Two statements should never be put on the same line"
 
-instance Show R.Error where
-  show = \case
-    R.Earlier    error     -> show error
+instance PrettyPrint R.Error where
+  pp = \case
+    R.Earlier    error     -> pp error
 
     R.UnboundId  ident     -> show ident ++ " is unbound"
     R.MutateVar  loc ident -> "cannot mutate non-variable " ++ ident ++ ", bound at " ++ show loc
 
     R.DupIdent dt loc iden -> sentance1 ++ " one of them is bound at " ++ show loc ++ "."
       where sentance1 = case dt of
-              R.Pattern -> "pattern binds multiple identifiers named " ++ show iden ++ "."
-              R.Constr  -> "type has multiple variants named "         ++ show iden ++ "."
-              R.Graph   -> "graph has multiple declerations named "    ++ show iden ++ "."
+              R.Pattern -> "pattern binds multiple identifiers named " ++ iden ++ "."
+              R.Constr  -> "type has multiple variants named "         ++ iden ++ "."
+              R.Graph   -> "graph has multiple declerations named "    ++ iden ++ "."
 
-    R.TypeError ty err -> show err ++ " in " ++ show ty
+    R.TypeError ty err -> pp err ++ " in " ++ pp ty
 
-instance Show R.TypeError where
-  show = \case
-    R.TEEarlier terror    -> show terror
+instance PrettyPrint R.TypeError where
+  pp = \case
+    R.TEEarlier terror    -> pp terror
 
     R.AmbiguousType        -> "ambiguous type ecountered"
-    R.PartialObj fields    -> "ambiguous object type encountered with fields " ++ show fields
+    R.PartialObj fields    -> "ambiguous object type encountered with fields "
+                              ++ (curlyList $ (++ ["..."]) $ for (M.toList fields) $
+                                \ (f, t) -> f ++ ": " ++ pp t)
