@@ -28,7 +28,7 @@ angleList :: [String] -> String
 angleList l = "<"  ++ intercalate ", " l ++ ">"
 
 curlyList :: [String] -> String
-curlyList l = "<"  ++ intercalate ", " l ++ ">"
+curlyList l = "{"  ++ intercalate ", " l ++ "}"
 
 lines :: [String] -> String
 lines  [] = ": ;"
