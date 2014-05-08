@@ -5,24 +5,24 @@ import Control.Applicative hiding (many, (<|>))
 import Text.Parsec
 import Text.Parsec.String
 
+import Pyrec.Lex
 import Pyrec.Misc
 import Pyrec.AST           as A
 
-type Parse = Parsec String Bool -- Bool is for after space or not
+type Parse = Parsec [Token] ()
 
 -- Parser:
 
 parseString :: Parse a -> String -> Either ParseError a
-parseString p input = runParser p True "test" input
+parseString p input = runParser p () "test" $ scan "test" input
 
 program :: Parse Module
-program = endToken >> Module <$> provide <*> many import_ <*> block
-                   <* spaces <* eof
+program = Module <$> provide <*> many import_ <*> block <* eof
 
 provide :: Parse (Node Provide)
 provide = node $ option NoProvide $
             do kw "provide"
-               (op "*" >> return ProvideAll)
+               (kw "*" >> return ProvideAll)
                  <|> (ProvideExpr <$> expr <* end)
 
 import_ :: Parse (Node Import)
@@ -48,29 +48,29 @@ varStmt :: Parse Statement
 varStmt = kw "var" *> (VarStmt <$> let_)
 
 let_ :: Parse (Let Id)
-let_ = Let <$> idenBind <* op "=" <*> expr
+let_ = Let <$> idenBind <* kw "=" <*> expr
 
 assignStmt :: Parse Statement
-assignStmt = AssignStmt <$> iden <* op ":=" <*> expr
+assignStmt = AssignStmt <$> iden <* kw ":=" <*> expr
 
 funStmt :: Parse Statement
 funStmt = try ((kw "fun" *>) $
                   FunStmt <$> optionMaybe typeParams)
                     <*> iden
                     <*> optionMaybe params
-                    <*> optionMaybe (op "->" *> type_)
+                    <*> optionMaybe (kw "->" *> type_)
                     <* begin
                     <*> block
                     <* end
 
 typeParams :: Parse [Id]
-typeParams = angleNoSpace *> sepBy iden (op ",") <* bracket '>'
+typeParams = angleNoSpace *> sepBy iden (kw ",") <* close '>'
 
 params :: Parse [Bind Id]
-params = parenNoSpace *> sepBy idenBind (op ",") <* bracket ')'
+params = parenNoSpace *> sepBy idenBind (kw ",") <* close ')'
 
 bind :: (Parse a) -> Parse (Bind a)
-bind b = Bind <$> b <*> optionMaybe (op "::" *> type_)
+bind b = Bind <$> b <*> optionMaybe (kw "::" *> type_)
 
 idenBind = bind iden
 keyBind  = bind key
@@ -94,16 +94,16 @@ appVal = pfoldl val args
         parseArgs con arg = do a <- arg
                                return $ \ f@(Node l _) -> Node l $ con f a
         vapp = parseArgs App $ parenNoSpace
-                                 *> sepBy expr  (op ",")
-                                 <* bracket ')'
+                                 *> sepBy expr  (kw ",")
+                                 <* close ')'
         tapp = parseArgs AppT $ angleNoSpace
-                                  *> sepBy type_ (op ",")
-                                  <* bracket '>'
-        dot  = parseArgs Dot $ op "." *> key
+                                  *> sepBy type_ (kw ",")
+                                  <* close '>'
+        dot  = parseArgs Dot $ kw "." *> key
 
 val :: Parse (Node Expr)
 val = node $  Ident <$> iden
-          <|> Num   <$> number
+          <|> Num   <$> num
           <|> Str   <$> str
           <|> funExpr
           <|> parenExpr
@@ -115,7 +115,7 @@ funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
             Fun <$> optionMaybe typeParams
                 <*> optionMaybe params
-                <*> optionMaybe (op "->" *> type_)
+                <*> optionMaybe (kw "->" *> type_)
                 <* begin
                 <*> block
                 <* end
@@ -123,18 +123,18 @@ funExpr = (kw "fun" *>) $
 parenExpr :: Parse Expr
 parenExpr = do parenWithSpace
                en@(Node _ e) <- expr
-               option e $ TypeConstraint en <$> (op "::" *> type_)
-            <* bracket ')'
+               option e $ TypeConstraint en <$> (kw "::" *> type_)
+            <* close ')'
 
 objExpr :: Parse Expr
-objExpr = bracket '{' *> (Obj <$> sepBy objField (op ",")) <* bracket '}'
+objExpr = open '{' *> (Obj <$> sepBy objField (kw ",")) <* close '}'
 
 objField :: Parse (Node Field)
 objField = node $ option Immut (kw "mutable" *> pure Mut)
-                    <*> (Let <$> keyBind <* op ":" <*> expr)
+                    <*> (Let <$> keyBind <* kw ":" <*> expr)
 
 key :: Parse Key
-key = (Name <$> iden) <|> (bracket '[' *> (Dynamic <$> expr) <* bracket ']')
+key = (Name <$> iden) <|> (open '[' *> (Dynamic <$> expr) <* close ']')
 
 ifExpr :: Parse Expr
 ifExpr = (kw "if" *>) $ If <$> ((:) <$> branch
@@ -149,61 +149,62 @@ branch = Branch <$> expr <* begin <*> block
 
 casesExpr :: Parse Expr
 casesExpr = (kw "cases" *>) $ Cases
-              <$> (optionMaybe $ parenNoSpace *> type_ <* bracket ')')
+              <$> (optionMaybe $ parenNoSpace *> type_ <* close ')')
               <*> expr
               <* begin
               <*> many case_
               <* end
 
 case_ :: Parse Case
-case_ = (op "|" *>) $ (pure Else <* kw "else" <* op "=>" <*> block) <|>
+case_ = (kw "|" *>) $ (pure Else <* kw "else" <* kw "=>" <*> block) <|>
                       (pure Case <*> iden
                                  <*> optionMaybe params
-                                 <* op "=>"
+                                 <* kw "=>"
                                  <*> block)
 
 begin :: Parse ()
-begin = op ":"
+begin = kw ":"
 
 end :: Parse ()
-end = kw "end" <|> op ";"
+end = kw "end" <|> kw ";"
 
-bop :: (String -> Parse ()) -> String -> Parse String
-bop kind word = kind word *> pure word
+bkw :: (String -> Parse ()) -> String -> Parse String
+bkw kind word = kind word *> pure word
 
-binOps = [ bop op "+", bop op "-", bop op "*", bop op "/"
-         , bop op "<=", bop op ">=", bop op "=="
-         , bop op "<>", bop op "<", bop op ">"
-         , bop kw "and", bop kw "or"
+binOps = [ bkw kw "+", bkw kw "-", bkw kw "*", bkw kw "/"
+         , bkw kw "<=", bkw kw ">=", bkw kw "=="
+         , bkw kw "<>", bkw kw "<", bkw kw ">"
+         , bkw kw "and", bkw kw "or"
          ]
 
 none :: Parse ()
 none = return ()
 
--- Lexer:
+-- Lexer interaction:
 
 node :: Parse a -> Parse (Node a)
 node p = Node <$> getPosition <*> p
 
-number :: Parse Double
-number = tok "number" $ fmap read $ (++) <$> nat <*> decimal
-  where nat = many1 digit
-        decimal = option "" $ (:) <$> char '.' <*> nat
+tok :: (Tok -> Maybe a) -> Parse a
+tok match = tokenPrim show nextPos $ \ (Token _ t) -> match t
+  where nextPos _ _ (Token p _ : _) = p
+        nextPos p _ []              = p
 
-str :: Parse String -- TODO: Fix
-str = tok "string" $ char '"' *> (many $ noneOf ['"'] <|> escaped) <* char '"'
-  where escaped = char '\\' *> choice (for pairs $ \(c,r) -> char c *> pure r)
-        pairs   = [ ('b', '\b'), ('\n','n'), ('\f','f'), ('\r','r'), ('\t','t')
-                  , ('\\','\\'),  ('\"','\"'), ('/','/')]
+num :: Parse Double
+num = tok $ \case TNum n -> Just n
+                  _      -> Nothing
+
+str :: Parse String
+str = tok $ \case TStr i -> Just i
+                  _      -> Nothing
 
 iden :: Parse Id
-iden = tok "identifier" $ node $ try $
-         do word <- (:) <$> idenStart <*> many idenChar
-                        <* notFollowedBy idenChar
-            if elem word keywords then parserZero else return word
+iden = node $ tok $ \case Iden i -> Just i
+                          _      -> Nothing
 
 kw :: String -> Parse ()
-kw word = tok word $ string word >> notFollowedBy idenChar
+kw w = tok $ \case Kw w -> Just ()
+                   _    -> Nothing
 
 keywords = [ "import", "provide", "as"
            , "var"
@@ -221,42 +222,20 @@ keywords = [ "import", "provide", "as"
            , "and", "or", "not", "is", "raises"
            ]
 
-idenStart :: Parse Char
-idenStart = letter
+openSpace :: Bool -> Char -> Parse ()
+openSpace s c = tok $ \case Open [c] s -> Just ()
+                            _          -> Nothing
 
-idenChar :: Parse Char
-idenChar = alphaNum <|> char '-'
+parenWithSpace = openSpace True  '('
+parenNoSpace   = openSpace False '('
 
-op word = tok word $ string word >> notFollowedBy operatorChar
+angleWithSpace = openSpace True  '<'
+angleNoSpace   = openSpace False '<'
 
-operatorChar :: Parse Char
-operatorChar = oneOf "+-*/<>=:."
+open :: Char -> Parse ()
+open c = tok $ \case Open [c] _ -> Just ()
+                     _          -> Nothing
 
-endToken :: Parse ()
-endToken = skipMany $ (<?> "whitspace") $
-             ((space >> none) <|>
-              (char '#' *> manyTill anyChar newline *> none))
-                *> putState True
-
-tok :: String -> Parse a -> Parse a
-tok name p = try $ (lookAhead p
-                      *> putState False
-                      *> p
-                      <* endToken
-                      <?> name)
-
-opSpace :: Char -> Bool -> Parse ()
-opSpace c s = do afterSpace <- getState
-                 if s == afterSpace
-                 then char c >> putState False
-                 else parserZero
-                 endToken
-
-parenWithSpace = opSpace '(' True
-parenNoSpace = opSpace '(' False
-
-angleWithSpace = opSpace '<' True
-angleNoSpace = opSpace '<' False
-
-bracket :: Char -> Parse ()
-bracket c = char c >> putState False >> endToken
+close :: Char -> Parse ()
+close c = tok $ \case Close [c] -> Just ()
+                      _         -> Nothing
