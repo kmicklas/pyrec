@@ -5,7 +5,8 @@ import Control.Applicative hiding (many, (<|>))
 import Text.Parsec
 import Text.Parsec.String
 
-import Pyrec.AST as A
+import Pyrec.Misc
+import Pyrec.AST           as A
 
 type Parse = Parsec String Bool -- Bool is for after space or not
 
@@ -34,11 +35,11 @@ block :: Parse Block
 block = Statements <$> many stmt
 
 stmt :: Parse (Node Statement)
-stmt = node $ try letStmt
-          <|> try varStmt
-          <|> funStmt -- no try because we do it internally
-          <|> try assignStmt
-          <|> (ExprStmt <$> expr)
+stmt = node $  try letStmt
+           <|> try varStmt
+           <|> funStmt -- no try because we do it internally
+           <|> try assignStmt
+           <|> (ExprStmt <$> expr)
 
 letStmt :: Parse Statement
 letStmt = LetStmt <$> let_
@@ -101,14 +102,14 @@ appVal = pfoldl val args
         dot  = parseArgs Dot $ op "." *> key
 
 val :: Parse (Node Expr)
-val = node $ Ident  <$> iden <|>
-             Num <$> number <|>
-             Str <$> str <|>
-             funExpr <|>
-             parenExpr <|>
-             objExpr <|>
-             ifExpr <|>
-             casesExpr
+val = node $  Ident <$> iden
+          <|> Num   <$> number
+          <|> Str   <$> str
+          <|> funExpr
+          <|> parenExpr
+          <|> objExpr
+          <|> ifExpr
+          <|> casesExpr
 
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
@@ -188,7 +189,10 @@ number :: Parse Double
 number = tok "number" $ read <$> many1 digit
 
 str :: Parse String -- TODO: Fix
-str = tok "string" $ char '"' *> (many $ noneOf ['"']) <* char '"'
+str = tok "string" $ char '"' *> (many $ noneOf ['"'] <|> escaped) <* char '"'
+  where escaped = char '\\' *> choice (for pairs $ \(c,r) -> char c *> pure r)
+        pairs   = [ ('b', '\b'), ('\n','n'), ('\f','f'), ('\r','r'), ('\t','t')
+                  , ('\\','\\'),  ('\"','\"'), ('/','/')]
 
 iden :: Parse Id
 iden = tok "identifier" $ node $ try $
