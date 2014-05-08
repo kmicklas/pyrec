@@ -1,23 +1,22 @@
 name:                     pyrec
 version:                  0.0.0.0
 category:                 Language, Development
-synopsis:                 A Compiler for Pyrec
+synopsis:                 A Compiler for Pyret
 --description:              
---license:                  
---license-file:             LICENSE
+license:                  MIT
+license-file:             LICENSE
 author:                   Kenneth Micklas, John Ericson
---maintainer:               --email
-homepage:                 http://pyret.org
---bug-reports:              https://github.com/
+homepage:                 https://github.com/kmicklas/pyrec
+bug-reports:              https://github.com/kmicklas/pyrec/issues
 Cabal-Version:            >= 1.10
 build-type:               Simple
 
 extra-source-files:       runtime/*
   ,                       tests/*
 
---source-repository head
---  type:                 git
---  location:             https://github.com/
+source-repository head
+  type:                   git
+  location:               git://github.com/kmicklas/pyrec.git
 
 library
   hs-source-dirs:         src
