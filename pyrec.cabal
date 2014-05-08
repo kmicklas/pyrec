@@ -83,6 +83,8 @@ test-suite spec
 
   main-is:                Spec.hs
 
+  other-modules:          Pyrec.Lex
+
   build-depends:          base        >=4 && <5
     ,                     mtl         >=2
     ,                     containers
