@@ -221,12 +221,13 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
     (\_           i            -> dmn i)
     (\cT qT _  _               -> \case
         (D.T t)              -> qT t
-        t                    -> TIdent $ dmn $ case t of
-          (D.TUnknown)                     -> "?"
-          (D.PartialObj fields)            -> "PARTIAL" ++ (pp $ TObject $ f <$> M.toList fields)
-          (D.TError (D.TypeMismatch a b))  -> "Mismatch(" ++ (pp $ cT a) ++ ", " ++ (pp $ cT b) ++ ")"
-          (D.TError (D.CantCaseAnalyze t)) -> "Can'tCase(" ++ (pp $ cT t) ++ ")"
-          where f (s,t) = Bind (dmn s) $ Just $ dmn $ cT t)
+        (D.TUnknown)                     -> TIdent $ dmn $ "?"
+        (D.PartialObj fields)            ->
+          TIdent $ dmn $ "PARTIAL" ++ (pp $ TObject $ f <$> M.toList fields)
+          where f (s,t) = Bind (dmn s) $ Just $ dmn $ cT t
+        (D.TError (D.TypeMismatch a b))  ->
+          TIdent $ dmn $ "Mismatch(" ++ (pp $ cT a) ++ ", " ++ (pp $ cT b) ++ ")"
+        (D.TError (D.CantCaseAnalyze t)) -> TIdent $ dmn $ "Can'tCase(" ++ (pp $ cT t) ++ ")")
     (\cE qE cT _               -> \case
         (D.E _ D.TUnknown e) -> qE e
         (D.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t
