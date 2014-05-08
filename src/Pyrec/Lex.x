@@ -36,14 +36,15 @@ tokens :-
   graph:|block:|
   for|from                            { tok $ \ s -> Kw s }
   [\(\<\[\{]                          { tok $ \ s -> Open  s False }
-  [\)\>\]\}]                         { tok $ \ s -> Close s       }
+  [\)\>\]\}]                          { tok $ \ s -> Close s       }
   .                                   { tok $ \ s -> Error s       }
+  \"[^\"]*\"                          { tok $ \ s -> TStr (read s) }
 
 {
 data Token = Token SourcePos Tok
 
 instance Show Token where
-  show (Token _ t) = show t
+  show (Token _ t) = showTok t
 
 tok :: (String -> Tok) -> AlexPosn -> String -> (AlexPosn, Tok)
 tok f p s = (p, f s)
@@ -56,16 +57,15 @@ data Tok
   | Open  String Bool
   | Close String
   | Error String -- for lexical errors
-  deriving (Eq, Ord)
+  deriving (Eq, Show, Ord)
 
-instance Show Tok where
-  show (Kw w)     = w
-  show (Iden w)   = w
-  show (TNum n)   = show n
-  show (TStr s)   = show s
-  show (Open s _) = s
-  show (Close s)  = s
-  show (Error s)  = s
+showTok (Kw w)     = w
+showTok (Iden w)   = w
+showTok (TNum n)   = show n
+showTok (TStr s)   = show s
+showTok (Open s _) = s
+showTok (Close s)  = s
+showTok (Error s)  = s
 
 scan :: String -> String -> [Token]
 scan file source =
