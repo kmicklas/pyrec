@@ -24,8 +24,7 @@ LDFLAGS = -lgmp
 	$(CC) $(LDFLAGS) -o $@ $<
 
 pyrec:
-	cd haskell; \
-	cabal install --bindir=..
+	cabal install --bindir=.
 
 clean:
 	rm -f pyrec *.lbc *.bc *.ll program
