@@ -219,7 +219,10 @@ mkFunctions bt bn id ty ex bl = (ex', bl', ty')
     (\_  cT       (D.BT l i t) -> Bind (Node l i) $ Just $ dmn $ cT t)
     (\_           (D.BN l i)   -> Node l i)
     (\_           i            -> dmn i)
-    (\_  qT _  _  (D.T t)      -> qT t)
+    (\_  qT _  _               -> \case
+        (D.T t)    -> qT t
+        D.TUnknown -> TIdent $ dmn "?"
+        (D.PartialObj fs) -> TIdent $ dmn $ ("PARTIAL JOHN FUCKED UP"))
     (\cE qE cT _               -> \case
         (D.E _ D.TUnknown e) -> qE e
         (D.E _ t          e) -> TypeConstraint (dmn $ qE e) $ dmn $ cT t
