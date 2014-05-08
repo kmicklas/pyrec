@@ -239,7 +239,9 @@ unify env t1 t2 = unifyWithSubsts env M.empty t1 t2
 
 -- expected then got
 unifyWithSubsts :: Env -> Map Id Id -> D.Type -> D.Type -> D.Type
-unifyWithSubsts env substs a b = case (a, b) of
+unifyWithSubsts env substs _a _b = case (_a, _b) of
+  (D.T TType, D.T TType) -> D.T TType
+
   (D.T (TIdent a), D.T (TIdent b)) ->
     try $ D.T <$> do
       -- either a substitutes for b, or a has no substitution and a == b
@@ -274,14 +276,23 @@ unifyWithSubsts env substs a b = case (a, b) of
       let update = M.intersectionWith recur o p  -- unify fields in common
       return $ M.union update o                  -- perform updates
 
+  (D.PartialObj p1, D.PartialObj p2) -> D.PartialObj $ p1 `M.union` p2
+
   (D.TUnknown, other)      -> checkT env other
   (other,      D.TUnknown) -> checkT env other
 
---  (error@(TError _), t)    -> TError $ TypeMismatch error t
-  (_,          _)          -> TError $ TypeMismatch a b
+  (TError e1,  TError e2)  -> TError $ unifyError env substs e1 e2
+  (a,          b)          -> TError $ TypeMismatch a b
 
   where recur = unifyWithSubsts env substs
         try :: Maybe D.Type -> D.Type
         try t = case t of
           Just t  -> t
-          Nothing -> TError $ TypeMismatch a b
+          Nothing -> TError $ TypeMismatch _a _b
+
+unifyError :: Env -> Map Id Id -> TypeError -> TypeError -> TypeError
+unifyError env substs _a _b = case (_a, _b) of
+  (TypeMismatch a1 a2, TypeMismatch b1 b2) -> TypeMismatch (mutRecur a1 b1) $ mutRecur a2 b2
+  (CantCaseAnalyze a,  CantCaseAnalyze b)  -> CantCaseAnalyze $ mutRecur a b
+  _                                        -> error "I DON'T EVEN"
+  where mutRecur = unifyWithSubsts env substs

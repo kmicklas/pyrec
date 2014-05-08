@@ -35,7 +35,7 @@ import qualified Pyrec.AST        as A
 
 import           Pyrec.IR
 
-import qualified Pyrec.IR.Desugar as D
+import           Pyrec.IR.Desugar as D
 import qualified Pyrec.IR.Core    as R
 
 import qualified Pyrec.Parse      as P
@@ -45,8 +45,8 @@ import qualified Pyrec.Report     as R
 import qualified Pyrec.Compile    as O
 import qualified Pyrec.Emit       as E
 
-strip (D.E          l t e) = D.E l t $ strip <$> e
-strip (D.Constraint _ _ e) = strip e
+strip (E          l t e) = E l t $ strip <$> e
+strip (Constraint _ _ e) = strip e
 
 pd :: String -> Either ParseError (D.Expr, [D.ErrorMessage])
 pd = runWriter <.> parseDesugar
@@ -72,7 +72,7 @@ noErrors = \case
 
 fillInConstraints = \case
   (Right (b, _, _, [], [], [])) -> b
-  _                          -> False
+  _                             -> False
 
 
 spec :: Spec
@@ -81,7 +81,7 @@ spec = unifySpec >> tcSpec
 unifySpec = describe "the type-unifier" $ do
 
   it "combines identical types without modification" $
-    property $ \(ty :: D.Type) -> unify M.empty ty ty == ty
+    property $ within 5000000 $ \(ty :: D.Type) -> unify M.empty ty ty == ty
 
 tcSpec = describe "the type checker" $ do
 
