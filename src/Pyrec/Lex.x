@@ -18,6 +18,11 @@ tokens :-
   "#".*                               ;
   $digit+                             { tok $ \ s -> TNum (read s) }
   $idenStart$idenChar*                { tok $ \ s -> Iden s }
+  "+"|"-"|"*"|"/"|
+  "<="|">="|"=="|
+  "<>"|">"|"<"|
+  \:|\,|
+  and|or|not|is|raises
   import|provide|as|
   var|
   fun|method|doc:|
@@ -30,8 +35,8 @@ tokens :-
   datatype|with\ constructor|
   graph:|block:|
   for|from                            { tok $ \ s -> Kw s }
-  [\(\<\[]                            { tok $ \ s -> Open  s False }
-  [\)\>\]]                            { tok $ \ s -> Close s       }
+  [\(\<\[\{]                          { tok $ \ s -> Open  s False }
+  [\)\>\]\}]                         { tok $ \ s -> Close s       }
   .                                   { tok $ \ s -> Error s       }
 
 {
