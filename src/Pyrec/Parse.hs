@@ -168,13 +168,13 @@ begin = kw ":"
 end :: Parse ()
 end = kw "end" <|> kw ";"
 
-bkw :: (String -> Parse ()) -> String -> Parse String
-bkw kind word = kind word *> pure word
+bkw :: String -> Parse String
+bkw word = kw word *> pure word
 
-binOps = [ bkw kw "+", bkw kw "-", bkw kw "*", bkw kw "/"
-         , bkw kw "<=", bkw kw ">=", bkw kw "=="
-         , bkw kw "<>", bkw kw "<", bkw kw ">"
-         , bkw kw "and", bkw kw "or"
+binOps = [ bkw "+", bkw "-", bkw "*", bkw "/"
+         , bkw "<=", bkw ">=", bkw "=="
+         , bkw "<>", bkw "<", bkw ">"
+         , bkw "and", bkw "or"
          ]
 
 none :: Parse ()
@@ -203,8 +203,8 @@ iden = node $ tok $ \case Iden i -> Just i
                           _      -> Nothing
 
 kw :: String -> Parse ()
-kw w = tok $ \case Kw w -> Just ()
-                   _    -> Nothing
+kw w = tok $ \case Kw s | w == s -> Just ()
+                   _             -> Nothing
 
 openSpace :: Bool -> Char -> Parse ()
 openSpace s c = tok $ \case Open [c] s -> Just ()
