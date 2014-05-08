@@ -27,6 +27,7 @@ library
 
   exposed-modules:        Pyrec
 
+    ,                     Pyrec.Lex
     ,                     Pyrec.Parse
     ,                     Pyrec.Desugar
     ,                     Pyrec.Check
@@ -52,6 +53,9 @@ library
     ,                     containers
     ,                     parsec      >=3
     ,                     hashable
+    ,                     array
+
+  build-tools:            alex
 
 executable pyrec
   hs-source-dirs:         exe-src
