@@ -1,4 +1,7 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE CPP #-}
+
+{-# OPTIONS_GHC -F -pgmFderive -optF-F #-}
 
 module Pyrec.IR where
 -- Abstract IR
@@ -9,6 +12,14 @@ import Data.Foldable
 import Data.Traversable
 import Data.Map (Map)
 import Data.List
+
+#ifdef TEST
+import Test.Hspec
+import Test.Hspec.QuickCheck    (prop)
+import Test.QuickCheck          hiding ((.&.))
+
+import Pyrec.TestMisc
+#endif
 
 type FieldName = String
 
@@ -73,4 +84,14 @@ data Variant bt bn
   = Variant bn (Maybe [bt])
   deriving (Eq, Show)
 
-
+#ifdef TEST
+{-!
+deriving instance Arbitrary Expr
+deriving instance Arbitrary Type
+deriving instance Arbitrary DefType
+deriving instance Arbitrary Decl
+deriving instance Arbitrary Case
+deriving instance Arbitrary Pattern
+deriving instance Arbitrary Variant
+!-}
+#endif

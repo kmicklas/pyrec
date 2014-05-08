@@ -55,7 +55,7 @@ library
   build-tools:            alex
 
 executable pyrec
-  hs-source-dirs:         src
+  hs-source-dirs:         driver
   default-language:       Haskell2010
   default-extensions:     LambdaCase
     ,                     ScopedTypeVariables
@@ -74,6 +74,7 @@ executable pyrec
 
 test-suite spec
   type:                   exitcode-stdio-1.0
+  cpp-options:            -DTEST
 
   hs-source-dirs:         src
   default-language:       Haskell2010

@@ -8,6 +8,8 @@ import           Control.Applicative
 import           Control.Monad            hiding (mapM, forM)
 import           Control.Monad.Writer     hiding (mapM, forM, sequence)
 
+import qualified Data.Map                 as M
+import           Data.Map                 (Map)
 import           Data.Word
 import           Data.Traversable         hiding (for, sequence)
 
@@ -38,7 +40,7 @@ import qualified Pyrec.IR.Core    as R
 
 import qualified Pyrec.Parse      as P
 import qualified Pyrec.Desugar    as D
-import qualified Pyrec.Check      as C
+import           Pyrec.Check      as C
 import qualified Pyrec.Report     as R
 import qualified Pyrec.Compile    as O
 import qualified Pyrec.Emit       as E
@@ -81,6 +83,11 @@ instance Show (Pyrec.Error.Message R.Error) where
 
 spec :: Spec
 spec = do
+  describe "the type-unifier" $ do
+
+    it "combines identical types without modification" $
+      property $ \(ty :: D.Type) -> unify M.empty ty ty == ty
+
   describe "the type checker" $ do
 
     it "type checks natural number literals" $
