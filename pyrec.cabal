@@ -35,8 +35,6 @@ library
     ,                     Pyrec.Compile
     ,                     Pyrec.Emit
 
-    ,                     Pyrec.Interp
-
     ,                     Pyrec.SSA
     ,                     Pyrec.AST
     ,                     Pyrec.IR
