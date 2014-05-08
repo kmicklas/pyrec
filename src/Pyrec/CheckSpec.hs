@@ -43,28 +43,6 @@ import qualified Pyrec.Report     as R
 import qualified Pyrec.Compile    as O
 import qualified Pyrec.Emit       as E
 
-
-{-
-
-e l = D.E (pos l) TUnknown
-
-eLet l n v i = Let (Def Val (D.BT (pos l) n TUnknown) v) i
-eVar l n v i = Let (Def Var (D.BT (pos l) n TUnknown) v) i
-eSeq     v i = Let (Def Val (D.BT (pos 0) "$temp" TUnknown) v) i
-
-prog1 = e 1 $ eLet 2 "x" (e 3 $ Num 55) $ e 2 $ Ident "x"
-
-prog2 = e 1 $ eVar 2 "x" (e 3 $ Num 55)
-            $ e 4 $ eSeq (e 6 $ Assign "x" $ e 7 $ Num 37)
-                  $ e 8 $ Ident "x"
-
-prog3 = e 1 $ App (e 2 $ Ident "f") $ map (\a -> e (round a) $ Num a) [1..4]
-env3  = M.singleton "f" $ Def Val (D.BT (pos 9) "f" $ T $ TFun (replicate 4 $ T $ TIdent "Number") $ T $ TIdent "String") ()
-
-prog4 = e 1 $ eLet 2 "x" (e 3 $ Num 77)
-            $ e 4 $ App (e 5 $ Ident "@pyretTimes") [e 6 $ Ident "x", e 7 $ Num 33]
--}
-
 strip (D.E          l t e) = D.E l t $ strip <$> e
 strip (D.Constraint _ _ e) = strip e
 
