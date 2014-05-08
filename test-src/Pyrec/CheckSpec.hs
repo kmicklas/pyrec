@@ -5,14 +5,18 @@ module Pyrec.CheckSpec where
 import           Prelude                  hiding (map, mapM)
 
 import           Control.Applicative
-import           Control.Monad            hiding (mapM)
-import           Control.Monad.Writer     hiding (mapM, sequence)
+import           Control.Monad            hiding (mapM, forM)
+import           Control.Monad.Writer     hiding (mapM, forM, sequence)
 
 import           Data.Traversable         hiding (for, sequence)
 
 import           Text.Parsec.Error
 
 import           Control.Monad            (mzero)
+
+import           System.FilePath          hiding ((<.>))
+import           System.Directory         (getDirectoryContents)
+import           System.IO.Unsafe         as Sin
 
 import           Test.Hspec
 import           Test.Hspec.QuickCheck    (prop)
@@ -76,7 +80,7 @@ testInfer env src = for (pd src) $ \case
           (e1', e1r) = runWriter $ checkReport env e
           (e2', e2r) = runWriter $ checkReport env $ strip e
 
-noErrors ::
+noErrors, fillInConstraints ::
   Either ParseError (Bool, R.Expr, R.Expr,
                      [R.ErrorMessage],
                      [R.ErrorMessage],
@@ -85,7 +89,7 @@ noErrors = \case
   (Right (_, _, _, [], [], [])) -> True
   _                             -> False
 
-fillsOutConstraints = \case
+fillInConstraints = \case
   (Right (b, _, _, [], [], [])) -> b
   _                          -> False
 
@@ -101,10 +105,10 @@ spec = do
   describe "the type checker" $ do
 
     it "type checks number literals" $
-      property $ \(num :: Double) -> fillsOutConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
+      property $ \(num :: Double) -> fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
 
     it "type checks string literals" $
-      property $ \(num :: String) -> fillsOutConstraints $ testInfer env $ "(" ++ show num ++ " :: String)"
+      property $ \(num :: String) -> fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: String)"
 
     it "accepts the identity function" $
       testInfer env "fun<A>(x :: A): x;" `shouldSatisfy` noErrors
@@ -114,3 +118,20 @@ spec = do
 
     it "accepts a polymorphic \"infinite loop\"" $
       testInfer env "fun bob<A>(x :: A) -> A: bob<A>(x);" `shouldSatisfy` noErrors
+
+    testFiles "test-data/error" "catches bad program"
+      (testInfer env) (not . noErrors)
+
+    testFiles "test-data/fill-in" "fills in the removed constraints"
+      (testInfer env) fillInConstraints
+
+-- hopefully an upstream change will pave the way for my atonement
+testFiles :: Show a => FilePath -> String -> (String -> a) -> (a -> Bool) -> Spec
+testFiles directory msg function predicate = forM_ files $ \fileName ->
+  it (msg ++ ": " ++ fileName) $ do
+    contents <- readFile $ directory </> fileName
+    function contents `shouldSatisfy` predicate
+
+  where files :: [FilePath]
+        files = filter (/= ".") $ filter (/= "..")
+                $ Sin.unsafePerformIO $ getDirectoryContents directory
