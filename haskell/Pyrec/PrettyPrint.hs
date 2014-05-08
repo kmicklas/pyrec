@@ -104,7 +104,10 @@ instance PrettyPrint Expr where
     (AppT e ts) -> (pp e ++) $ angleList $ pp <$> ts
 
     (UnOp  tok e)     -> tok ++ pp e
-    (BinOp tok e1 e2) -> pp e1 ++ " " ++ tok ++ " " ++ pp e2
+    (BinOp first rest) -> "(" ++ pp first
+                          ++ concat ((\ (op, e) -> " " ++ op ++ " " ++ pp e)
+                                       <$> rest)
+                          ++ ")"
 
     (Fun tps ps retT body) -> "fun"
                               ++ (opt $ angleList <$> fmap pp <$> tps)
