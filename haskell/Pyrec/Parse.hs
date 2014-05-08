@@ -107,7 +107,8 @@ val = node $ Ident  <$> iden <|>
              funExpr <|>
              parenExpr <|>
              objExpr <|>
-             ifExpr
+             ifExpr <|>
+             casesExpr
 
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
@@ -144,6 +145,21 @@ ifExpr = (kw "if" *>) $ If <$> ((:) <$> branch
 
 branch :: Parse Branch
 branch = Branch <$> expr <* begin <*> block
+
+casesExpr :: Parse Expr
+casesExpr = (kw "cases" *>) $ Cases
+              <$> (optionMaybe $ parenNoSpace *> type_ <* bracket ')')
+              <*> expr
+              <* begin
+              <*> many case_
+              <* end
+
+case_ :: Parse Case
+case_ = (op "|" *>) $ (pure Else <* kw "else" <* op "=>" <*> block) <|>
+                      (pure Case <*> iden
+                                 <*> optionMaybe params
+                                 <* op "=>"
+                                 <*> block)
 
 begin :: Parse ()
 begin = op ":"

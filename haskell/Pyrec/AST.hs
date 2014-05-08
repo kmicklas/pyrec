@@ -82,12 +82,18 @@ data Expr
   | Fun (Maybe [Id]) (Maybe [Bind Id]) (Maybe (Node Type)) Block
   | Block Block
   | If [Branch] (Maybe Block)
+  | Cases (Maybe (Node Type)) (Node Expr) [Case]
 
   | TypeConstraint (Node Expr) (Node Type)
   deriving (Eq, Show, Ord)
 
 data Branch
   = Branch (Node Expr) Block
+  deriving (Eq, Show, Ord)
+
+data Case
+  = Case Id (Maybe [Bind Id]) Block
+  | Else Block
   deriving (Eq, Show, Ord)
 
 data Field
