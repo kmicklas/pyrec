@@ -206,22 +206,6 @@ kw :: String -> Parse ()
 kw w = tok $ \case Kw w -> Just ()
                    _    -> Nothing
 
-keywords = [ "import", "provide", "as"
-           , "var"
-           , "fun", "method", "doc"
-           , "where"
-           , "check"
-           , "try", "except"
-           , "cases"
-           , "when", "if", "then", "else"
-           , "data", "with", "sharing", "mutable", "cyclic"
-           , "datatype", "constructor"
-           , "graph", "block"
-           , "for", "from"
-           , "end"
-           , "and", "or", "not", "is", "raises"
-           ]
-
 openSpace :: Bool -> Char -> Parse ()
 openSpace s c = tok $ \case Open [c] s -> Just ()
                             _          -> Nothing
