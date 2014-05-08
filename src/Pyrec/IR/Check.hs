@@ -7,8 +7,8 @@ import           Pyrec.IR.Desugar (Loc, BindN, BindT, Type)
 data Id
   = Bound   {_dt :: IR.DefType, _l :: Loc, getId :: String }
   | Unbound                               {getId :: String }
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data Expr
   = E Loc Type (IR.Expr BindT BindN Id Type Expr)
-  deriving (Eq)
+  deriving (Eq, Show)

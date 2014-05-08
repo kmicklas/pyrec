@@ -75,47 +75,42 @@ fillInConstraints = \case
   _                          -> False
 
 
-instance Show R.Expr where
-  show = pp
-
-instance Show (Pyrec.Error.Message R.Error) where
-  show = pp
-
 spec :: Spec
-spec = do
-  describe "the type-unifier" $ do
+spec = unifySpec >> tcSpec
 
-    it "combines identical types without modification" $
-      property $ \(ty :: D.Type) -> unify M.empty ty ty == ty
+unifySpec = describe "the type-unifier" $ do
 
-  describe "the type checker" $ do
+  it "combines identical types without modification" $
+    property $ \(ty :: D.Type) -> unify M.empty ty ty == ty
 
-    it "type checks natural number literals" $
-      property $ \(num :: Word) ->
-        fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
+tcSpec = describe "the type checker" $ do
 
-    it "type checks decimal literals" $
-      property $ \(n1 :: Word) (n2 :: Word) ->
-        fillInConstraints $ testInfer env
-        $ "(" ++ show n1 ++ "." ++ show n2 ++ " :: Number)"
+  it "type checks natural number literals" $
+    property $ \(num :: Word) ->
+    fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
 
-    it "type checks string literals" $
-      property $ \(num :: String) -> fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: String)"
+  it "type checks decimal literals" $
+    property $ \(n1 :: Word) (n2 :: Word) ->
+    fillInConstraints $ testInfer env
+    $ "(" ++ show n1 ++ "." ++ show n2 ++ " :: Number)"
 
-    it "accepts the identity function" $
-      testInfer env "fun<A>(x :: A): x;" `shouldSatisfy` noErrors
+  it "type checks string literals" $
+    property $ \(num :: String) -> fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: String)"
 
-    it "accepts a concrete \"infinite loop\"" $
-      testInfer env "fun bob(x :: String) -> A: bob(x);" `shouldSatisfy` noErrors
+  it "accepts the identity function" $
+    testInfer env "fun<A>(x :: A): x;" `shouldSatisfy` noErrors
 
-    it "accepts a polymorphic \"infinite loop\"" $
-      testInfer env "fun bob<A>(x :: A) -> A: bob<A>(x);" `shouldSatisfy` noErrors
+  it "accepts a concrete \"infinite loop\"" $
+    testInfer env "fun bob(x :: String) -> A: bob(x);" `shouldSatisfy` noErrors
 
-    testFiles "tests/error" "catches bad program"
-      (testInfer env) (not . noErrors)
+  it "accepts a polymorphic \"infinite loop\"" $
+    testInfer env "fun bob<A>(x :: A) -> A: bob<A>(x);" `shouldSatisfy` noErrors
 
-    testFiles "tests/fill-in" "fills in the removed constraints"
-      (testInfer env) fillInConstraints
+  testFiles "tests/error" "catches bad program"
+    (testInfer env) (not . noErrors)
+
+  testFiles "tests/fill-in" "fills in the removed constraints"
+    (testInfer env) fillInConstraints
 
 -- hopefully an upstream change will pave the way for my atonement
 testFiles :: Show a => FilePath -> String -> (String -> a) -> (a -> Bool) -> Spec

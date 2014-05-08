@@ -10,4 +10,4 @@ import Data.Traversable
 
 data Message error
   = Msg SourcePos error
-  deriving (Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
