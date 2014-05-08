@@ -8,6 +8,7 @@ import           Control.Applicative
 import           Control.Monad            hiding (mapM, forM)
 import           Control.Monad.Writer     hiding (mapM, forM, sequence)
 
+import           Data.Word
 import           Data.Traversable         hiding (for, sequence)
 
 import           Text.Parsec.Error
@@ -104,8 +105,14 @@ spec :: Spec
 spec = do
   describe "the type checker" $ do
 
-    it "type checks number literals" $
-      property $ \(num :: Double) -> fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
+    it "type checks natural number literals" $
+      property $ \(num :: Word) ->
+        fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
+
+    it "type checks decimal literals" $
+      property $ \(n1 :: Word) (n2 :: Word) ->
+        fillInConstraints $ testInfer env
+        $ "(" ++ show n1 ++ "." ++ show n2 ++ " :: Number)"
 
     it "type checks string literals" $
       property $ \(num :: String) -> fillInConstraints $ testInfer env $ "(" ++ show num ++ " :: String)"
