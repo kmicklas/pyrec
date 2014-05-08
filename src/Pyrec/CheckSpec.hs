@@ -126,10 +126,10 @@ spec = do
     it "accepts a polymorphic \"infinite loop\"" $
       testInfer env "fun bob<A>(x :: A) -> A: bob<A>(x);" `shouldSatisfy` noErrors
 
-    testFiles "test-data/error" "catches bad program"
+    testFiles "tests/error" "catches bad program"
       (testInfer env) (not . noErrors)
 
-    testFiles "test-data/fill-in" "fills in the removed constraints"
+    testFiles "tests/fill-in" "fills in the removed constraints"
       (testInfer env) fillInConstraints
 
 -- hopefully an upstream change will pave the way for my atonement
