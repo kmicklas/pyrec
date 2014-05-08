@@ -136,8 +136,10 @@ key = (Name <$> iden) <|> (bracket '[' *> (Dynamic <$> expr) <* bracket ']')
 
 ifExpr :: Parse Expr
 ifExpr = (kw "if" *>) $ If <$> ((:) <$> branch
-                                    <*> (many $ kw "else if" *> branch))
-                           <*> optionMaybe (kw "else:" *> block)
+                                    <*> (many $ try (kw "else")
+                                                  *> kw "if"
+                                                  *> branch))
+                           <*> optionMaybe (kw "else" *> begin *> block)
                            <* end
 
 branch :: Parse Branch
@@ -183,17 +185,17 @@ kw word = tok word $ string word >> notFollowedBy idenChar
 
 keywords = [ "import", "provide", "as"
            , "var"
-           , "fun", "method", "doc:"
-           , "where:"
-           , "check:"
-           , "try:", "except"
+           , "fun", "method", "doc"
+           , "where"
+           , "check"
+           , "try", "except"
            , "cases"
-           , "when", "if:", "then:", "if", "else if", "else:"
-           , "data", "with:", "sharing:", "mutable", "cyclic"
-           , "datatype", "with constructor"
-           , "graph:", "block:"
+           , "when", "if", "then", "else"
+           , "data", "with", "sharing", "mutable", "cyclic"
+           , "datatype", "constructor"
+           , "graph", "block"
            , "for", "from"
-           , "end", ";"
+           , "end"
            , "and", "or", "not", "is", "raises"
            ]
 
