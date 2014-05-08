@@ -107,10 +107,12 @@ convID (EE l t errors e) = EE l t errors $ case e of
   Num n -> Num n
   Str s -> Str s
 
-  Fun bds e        -> Fun bds $ r e
+  Fun  bds e       -> Fun  bds $ r e
+  FunT pts e       -> FunT pts $ r e
   Let d e          -> Let      (fmap r d)           $ r e
   Graph ds e       -> Graph    ((fmap . fmap) r ds) $ r e
-  App f as         -> App      (r f)                $ fmap r as
+  App  f as        -> App      (r f)                $ fmap r as
+  AppT f ts        -> AppT     (r f)                  ts
   Try e1 bd e2     -> Try      (r e1)                 bd $  r e2
   Cases vt v cases -> Cases vt (r v) $ (fmap . fmap) r cases
 
