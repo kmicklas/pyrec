@@ -16,12 +16,10 @@ tokens :-
 
   $white+                             ;
   "#".*                               ;
-  $digit+                             { tok $ \ s -> TNum (read s) }
-  $idenStart$idenChar*                { tok $ \ s -> Iden s }
   "+"|"-"|"*"|"/"|
   "<="|">="|"=="|
   "<>"|">"|"<"|
-  \:|\,|
+  \:|\,|\=|\:\:|
   and|or|not|is|raises
   import|provide|as|
   var|
@@ -34,7 +32,10 @@ tokens :-
   data|with:|sharing:|mutable|cyclic|
   datatype|with\ constructor|
   graph:|block:|
-  for|from                            { tok $ \ s -> Kw s }
+  for|from|
+  end|\;                              { tok $ \ s -> Kw s }
+  $digit+                             { tok $ \ s -> TNum (read s) }
+  $idenStart$idenChar*                { tok $ \ s -> Iden s }
   [\(\<\[\{]                          { tok $ \ s -> Open  s False }
   [\)\>\]\}]                          { tok $ \ s -> Close s       }
   .                                   { tok $ \ s -> Error s       }
