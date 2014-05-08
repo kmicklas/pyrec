@@ -56,7 +56,16 @@ data Tok
   | Open  String Bool
   | Close String
   | Error String -- for lexical errors
-  deriving (Eq, Show, Ord)
+  deriving (Eq, Ord)
+
+instance Show Tok where
+  show (Kw w)     = w
+  show (Iden w)   = w
+  show (TNum n)   = show n
+  show (TStr s)   = show s
+  show (Open s _) = s
+  show (Close s)  = s
+  show (Error s)  = s
 
 scan :: String -> String -> [Token]
 scan file source =
