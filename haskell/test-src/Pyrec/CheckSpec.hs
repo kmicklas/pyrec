@@ -12,11 +12,11 @@ import           Data.Traversable         hiding (for, sequence)
 
 import           Text.Parsec.Error
 
-import           Control.Monad         (mzero)
+import           Control.Monad            (mzero)
 
 import           Test.Hspec
-import           Test.Hspec.QuickCheck (prop)
-import           Test.QuickCheck       hiding ((.&.))
+import           Test.Hspec.QuickCheck    (prop)
+import           Test.QuickCheck          hiding ((.&.))
 
 import           Pyrec.Misc
 import           Pyrec.Error
@@ -86,7 +86,7 @@ noErrors = \case
   _                             -> False
 
 fillsOutConstraints = \case
-  (Right (b, _, _, _, _, _)) -> b
+  (Right (b, _, _, [], [], [])) -> b
   _                          -> False
 
 
@@ -100,11 +100,17 @@ spec :: Spec
 spec = do
   describe "the type checker" $ do
 
-    it "type checks literal number" $
+    it "type checks number literals" $
       property $ \(num :: Double) -> fillsOutConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
 
-    it "type checks literal string" $
+    it "type checks string literals" $
       property $ \(num :: String) -> fillsOutConstraints $ testInfer env $ "(" ++ show num ++ " :: String)"
 
     it "accepts the identity function" $
       testInfer env "fun<A>(x :: A): x;" `shouldSatisfy` noErrors
+
+    it "accepts a concrete \"infinite loop\"" $
+      testInfer env "fun bob(x :: String) -> A: bob(x);" `shouldSatisfy` noErrors
+
+    it "accepts a polymorphic \"infinite loop\"" $
+      testInfer env "fun bob<A>(x :: A) -> A: bob<A>(x);" `shouldSatisfy` noErrors
