@@ -38,7 +38,7 @@ data Expr
   | EmptyObject
   | Extend ex FieldName ex
   | Access ex FieldName
-  deriving (Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Type bn id ty
   = TIdent id
@@ -48,29 +48,29 @@ data Type bn id ty
   | TType -- not used in System F, but useful for errors now and future extensions later...
 
   | TObject (Map FieldName ty)
-  deriving (Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data DefType
   = Val
   | Var
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data Decl bt bn ex
   = Def DefType bt ex
   | Data bn [Variant bt bn]
-  deriving (Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Case bt bn ex
   = Case (Pattern bt bn) ex
-  deriving (Eq, Functor, Foldable, Traversable)
+  deriving (Eq, Show, Functor, Foldable, Traversable)
 
 data Pattern bt bn
   = Constr bn (Maybe [Pattern bt bn])
   | Binding bt
-  deriving (Eq)
+  deriving (Eq, Show)
 
 data Variant bt bn
   = Variant bn (Maybe [bt])
-  deriving (Eq)
+  deriving (Eq, Show)
 
 
