@@ -30,17 +30,21 @@ convBlock (Statements stmts) = case stmts of
   (Node p (ExprStmt e) : rest) ->
     recur $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p)
                                                         Nothing) e)) : rest
-  (Node p (LetStmt (Let bd e)) : rest) ->
-    D.E p D.TUnknown <$>
-      (IR.Let <$> (IR.Def IR.Val <$> convBind bd <*> convExpr e)
-              <*> afterDef p rest)
-    where afterDef p [] = do tell [Msg p D.EndBlockWithDef]
-                             recur []
-          afterDef p1 rest@(Node p2 _ : _) =
-            do when (sourceLine p1 == sourceLine p2) $
-                 tell [Msg p2 D.SameLineStatements]
-               recur rest
+  (Node p (LetStmt _let) : rest) -> letCommon IR.Val p _let rest
+  (Node p (VarStmt _let) : rest) -> letCommon IR.Var p _let rest
+
   where recur = convBlock . Statements
+
+        letCommon vv p (Let bd e) rest =
+          D.E p D.TUnknown <$>
+          (IR.Let <$> (IR.Def vv <$> convBind bd <*> convExpr e)
+           <*> afterDef p rest)
+          where afterDef p [] = do tell [Msg p D.EndBlockWithDef]
+                                   recur []
+                afterDef p1 rest@(Node p2 _ : _) =
+                  do when (sourceLine p1 == sourceLine p2) $
+                       tell [Msg p2 D.SameLineStatements]
+                     recur rest
 
 convBind :: Bind Id -> DS D.BindT
 convBind (Bind (Node p id) ty) = D.BT p id <$> convMaybeType ty
@@ -50,9 +54,13 @@ convBN (Node p i) = return $ D.BN p i
 
 convType :: Node Type -> DS D.Type
 convType (Node p t) = case t of
-  TIdent id@(Node _ name) -> return $ D.T $ IR.TIdent name
-  TFun   tys ty           -> fmap     D.T $ IR.TFun <$> (mapM recur tys) <*> recur ty
+  TIdent  id@(Node _ name) -> return $ D.T $ IR.TIdent name
+  TFun    tys ty           -> fmap     D.T $ IR.TFun    <$> (mapM recur  tys) <*> recur ty
+  TParam  ids ty           -> fmap     D.T $ IR.TParam  <$> (mapM convBN ids) <*> recur ty
+  TObject binds            -> fmap     D.T $ IR.TObject <$> M.fromList <$> mapM getPair binds
   where recur = convType . Node p
+        getPair :: Bind Id-> DS (IR.FieldName, D.Type)
+        getPair (Bind (Node _ id) ty) = (,) <$> return id <*> convMaybeType ty
 
 convMaybeType :: Maybe (Node Type) -> DS D.Type
 convMaybeType t = case t of
@@ -61,6 +69,7 @@ convMaybeType t = case t of
 
 convExpr :: Node Expr -> DS D.Expr
 convExpr (Node p e) = case e of
+  Str s             -> return $ mkT (IR.TIdent "String") $ IR.Str s
   Num n             -> return $ mkT (IR.TIdent "Number") $ IR.Num n
   Ident (Node _ id) -> return $ mkU $ IR.Ident id
 
@@ -85,6 +94,14 @@ convExpr (Node p e) = case e of
 
   App  f args -> fmap mkU $ IR.App  <$> convExpr f <*> sequence (convExpr <$> args)
   AppT f args -> fmap mkU $ IR.AppT <$> convExpr f <*> sequence (convType <$> args)
+
+  UnOp  tok e           -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e]
+  BinOp e  []           -> error "ill-formed binop chain"
+  BinOp e1 [(tok,e2)]   -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e1, e2]
+  BinOp e1 ((tok,e2):r) -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e1, rebuild $ BinOp e2 r]
+
+--  If _if _thens _else -> convExpr $ rebuild $ Cases (Just $ TIdent "Bool") _if $
+--                        [
 
   TypeConstraint expr typ -> D.Constraint p <$> convType typ <*> convExpr expr
 
