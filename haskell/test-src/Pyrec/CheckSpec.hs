@@ -85,6 +85,10 @@ noErrors = \case
   (Right (_, _, _, [], [], [])) -> True
   _                             -> False
 
+fillsOutConstraints = \case
+  (Right (b, _, _, _, _, _)) -> b
+  _                          -> False
+
 
 instance Show R.Expr where
   show = pp
@@ -95,6 +99,12 @@ instance Show (Pyrec.Error.Message R.Error) where
 spec :: Spec
 spec = do
   describe "the type checker" $ do
+
+    it "type checks literal number" $
+      property $ \(num :: Double) -> fillsOutConstraints $ testInfer env $ "(" ++ show num ++ " :: Number)"
+
+    it "type checks literal string" $
+      property $ \(num :: String) -> fillsOutConstraints $ testInfer env $ "(" ++ show num ++ " :: String)"
 
     it "accepts the identity function" $
       testInfer env "fun<A>(x :: A): x;" `shouldSatisfy` noErrors
