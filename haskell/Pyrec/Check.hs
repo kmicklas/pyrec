@@ -213,26 +213,26 @@ tc env (D.E          l t e) = case e of
 stripBN (BN _ n) = n
 
 subst :: Map Id D.Type -> D.Type -> D.Type
-subst substs t = case t of
-  D.T (TIdent id)          -> fromMaybe t $ M.lookup id substs
+subst substs = \case
+  t@(D.T (TIdent id))      -> fromMaybe t $ M.lookup id substs
   D.T (TParam params retT) -> D.T $ TParam params $ recur substs' retT
     where substs' = foldl' (flip M.delete) substs $ stripBN <$> params
   D.T inner                -> D.T        $ recur substs <$> inner
   PartialObj fields        -> PartialObj $ recur substs <$> fields
-  TError _                 -> t
-  TUnknown                 -> t -- redundancy to future-proof
+  t@(TError _)             -> t
+  t@(TUnknown)             -> t -- redundancy to future-proof
   where recur s' = subst s'
 
 checkT :: Env -> D.Type -> D.Type
-checkT env t = case t of
-  D.T (TIdent i)          -> case M.lookup i env of
+checkT env = \case
+  t@(D.T (TIdent i))       -> case M.lookup i env of
     Just (Def Val (BT _ _ (D.T TType)) _) -> t
     _                                     -> error "unbound, or non-type identifier"
   D.T (TParam params retT) -> flip checkT retT $ extendMap env $ M.fromList $ bindTParams <$> params
   D.T inner                -> D.T        $ checkT env <$> inner
   PartialObj fields        -> PartialObj $ checkT env <$> fields
-  TError _                 -> t
-  TUnknown                 -> t -- redundancy to future-proof
+  t@(TError _)             -> t
+  t@(TUnknown)             -> t -- redundancy to future-proof
 
 unify :: Env -> D.Type -> D.Type -> D.Type
 unify env t1 t2 = unifyWithSubsts env M.empty t1 t2
