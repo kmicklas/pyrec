@@ -186,7 +186,9 @@ node :: Parse a -> Parse (Node a)
 node p = Node <$> getPosition <*> p
 
 number :: Parse Double
-number = tok "number" $ read <$> many1 digit
+number = tok "number" $ fmap read $ (++) <$> nat <*> decimal
+  where nat = many1 digit
+        decimal = option "" $ (:) <$> char '.' <*> nat
 
 str :: Parse String -- TODO: Fix
 str = tok "string" $ char '"' *> (many $ noneOf ['"'] <|> escaped) <* char '"'
