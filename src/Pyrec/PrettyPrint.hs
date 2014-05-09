@@ -43,7 +43,7 @@ opt (Just i) = i
 
 optArgs :: (PrettyPrint p) => Maybe [p] -> String
 optArgs Nothing   = ""
-optArgs (Just as) = parenList $ pp as
+optArgs (Just as) = parenList $ pp <$> as
 
 instance PrettyPrint String where
   pp s = s
@@ -68,12 +68,21 @@ instance (PrettyPrint bt, PrettyPrint bn, PrettyPrint id,
 
     Try e b ex     -> "try" ++ block (pp e) ++ "except " ++ pp b ++ block (pp ex) ++ "end"
     EmptyObject    -> "{}"
-    Extend obj f v -> pp obj ++ "{" ++ f ++ ": " ++ pp v ++ "}"
+    Extend obj f v -> pp obj ++ ".{" ++ f ++ ": " ++ pp v ++ "}"
     Access obj f   -> pp obj ++ "." ++ f
 
     Let   d  e   -> undefined
     Graph ds e   -> undefined
     Assign _ _   -> undefined
+
+instance (PrettyPrint bn, PrettyPrint id, PrettyPrint ty) =>
+         PrettyPrint (Type bn id ty) where
+  pp = \case
+    TIdent id   -> pp id
+    TFun ps t   -> parenList (pp <$> ps) ++ " -> " ++ pp t
+    TParam ps t -> angleList (pp <$> ps) ++ " -> " ++ pp t
+    TType       -> "Type"
+    TObject fs  -> curlyList $ for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
 
 instance PrettyPrint DefType where
   pp Val = " = "
@@ -91,8 +100,11 @@ instance (PrettyPrint bt, PrettyPrint bn, PrettyPrint ex) =>
 
 instance (PrettyPrint bt, PrettyPrint bn) =>
          PrettyPrint (Pattern bt bn) where
-  pp = \case
-    Constr b ps -> pp b ++ optArgs ps
+  pp (Constr b ps) = pp b ++ optArgs ps
+
+instance (PrettyPrint bt, PrettyPrint bn) =>
+         PrettyPrint (Variant bt bn) where
+  pp (Variant b args) = pp b ++ optArgs args
 
 instance PrettyPrint D.Error where
   pp = \case
@@ -113,6 +125,24 @@ instance PrettyPrint R.Error where
               R.Graph   -> "graph has multiple declerations named "    ++ iden ++ "."
 
     R.TypeError ty err -> pp err ++ " in " ++ pp ty
+
+instance PrettyPrint D.BindT where
+  pp (D.BT _ n t) = n ++ " :: " ++ pp t
+
+instance PrettyPrint D.BindN where
+  pp (D.BN _ n) = n
+
+instance PrettyPrint D.Type where
+  pp = \case
+    D.T t -> pp t
+    D.TUnknown -> "?"
+    D.PartialObj fs -> curlyList $ (++ ["..."]) $
+      for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
+
+instance PrettyPrint D.TypeError where
+  pp = \case
+    D.TypeMismatch exp got -> "Expected " ++ pp exp ++ ", got " ++ pp got
+    D.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ pp ty
 
 instance PrettyPrint R.TypeError where
   pp = \case
