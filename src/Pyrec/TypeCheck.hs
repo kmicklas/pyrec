@@ -73,7 +73,7 @@ tc env (C.E          l t e) = case e of
 
   Let (Data i@(BN _ di) variants) e -> se t' $ Let data' e'
     where fixVariant :: Variant BindT BindN -> Variant BindT BindN
-          fixVariant (Variant vi args) = Variant vi $ (fmap . fmap) fixField args
+          fixVariant (Variant vi args) = Variant vi $ fixField <$$> args
             where fixField :: BindT -> BindT
                   fixField (BT bl bi t) = BT bl bi $ checkT env1 t
 
@@ -161,11 +161,11 @@ tc env (C.E          l t e) = case e of
 
                                   >>= find (\(Variant vi _) -> vi == ci)
                                 guard $ (length <$> params) == (length <$> pats)
-                                return $ flip (fmap . fmap) params $ \(BT _ _ t) -> t
+                                return $ flip (<$$>) params $ \(BT _ _ t) -> t
 
                     results :: Maybe [(Bool, Pattern , Env)]
                     (newerr, results) = case params of
-                      Nothing     -> (False , (fmap . fmap) (bind TUnknown) pats)
+                      Nothing     -> (False , bind TUnknown <$$> pats)
                       Just params -> (True  , zipWith bind <$> params <*> pats)
 
                     result = case results of

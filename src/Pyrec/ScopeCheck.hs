@@ -79,7 +79,7 @@ scE env (D.E          l t e) = C.E l (rT t) $ case e of
             (Data b vs) -> (Data b vs', env'')
               where env'  = uncurry M.insert (bindNParam b) env
                     vs'   = for vs $ \(Variant constr fs) ->
-                      Variant constr $ (fmap . fmap) (bindT env') fs
+                      Variant constr $ bindT env' <$$> fs
                     env'' = extendMap env' $ M.fromList $ bindNParam 
                             <$> (\(Variant c _) -> c) <$> vs
 
@@ -93,10 +93,10 @@ scE env (D.E          l t e) = C.E l (rT t) $ case e of
     where c (Case p e) = Case (pat' p) $ scE (M.union env $ accum p) e
           pat' = \case
             (Binding (BT l i t)) -> Binding $ C.BT l i $ rT t
-            (Constr c pats)      -> Constr c $ (fmap . fmap) pat' pats
+            (Constr c pats)      -> Constr c $ pat' <$$> pats
           accum = \case
             (Binding (BT l i _)) -> M.singleton i $ Entry l Val
-            (Constr _ pats)      -> fromMaybe M.empty $ M.unions <$> fmap accum <$> pats
+            (Constr _ pats)      -> fromMaybe M.empty $ M.unions <$> accum <$$> pats
 
   EmptyObject      -> EmptyObject
   Extend obj fi fv -> Extend (rE obj) fi (rE fv)

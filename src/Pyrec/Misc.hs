@@ -44,9 +44,31 @@ showLoc p = show $ abs $ hash (sourceName p,
                                sourceLine p,
                                sourceColumn p)
 
+infixl 4 <$$>
+(<$$>) :: (Functor f, Functor f1) =>
+          (a -> b) -> f (f1 a) -> f (f1 b)
+(<$$>) = fmap . fmap
+
+infixl 4 <$$$>
+(<$$$>) :: (Functor f, Functor f1, Functor f2) =>
+           (a -> b) -> f (f1 (f2 a)) -> f (f1 (f2 b))
+(<$$$>) = fmap . fmap . fmap
+
 infixr 9 <.>
-(<.>) :: Functor f => (a1 -> b) -> (a -> f a1) -> a -> f b
+(<.>) :: Functor f =>
+         (b -> c) -> (a -> f b) -> a -> f c
 a <.> b = fmap a . b
+
+infixr 9 <..>
+(<..>) :: (Functor f, Functor f1) =>
+          (b -> c) -> (a -> f (f1 b)) -> a -> f (f1 c)
+a <..> b = (fmap . fmap) a . b
+
+infixr 9 <...>
+(<...>) :: (Functor f, Functor f1, Functor f2) =>
+           (b -> c) -> (a -> f (f1 (f2 b))) -> a -> f (f1 (f2 c))
+a <...> b = (fmap . fmap . fmap) a . b
+
 
 #ifdef TEST
 {-!

@@ -84,7 +84,7 @@ convExpr (Node p e) = case e of
 
   Fun Nothing Nothing (Just params) retT body -> mkT <$> t <*> body'
     where binds    = mapM convBind params
-          types    = (fmap . fmap) (\(D.BT _ _ t) -> t) binds
+          types    = (\(D.BT _ _ t) -> t) <$$> binds
           t        = IR.TFun <$> types <*> convMaybeType retT
           body'    = IR.Fun  <$> binds <*> convBlock     body
 

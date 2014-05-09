@@ -6,7 +6,7 @@ import           Control.Applicative
 import           Control.Monad            hiding (mapM, sequence)
 import           Control.Monad.Writer     hiding (mapM, sequence)
 
-import           Data.Traversable
+import           Data.Traversable         hiding (for)
 import           Data.Foldable
 
 import           Pyrec.Misc
@@ -43,7 +43,7 @@ prepare (E l t e) = EE l t [] $ prepare <$> e
 trim :: ExprWithErrors R.Id -> RP R.Expr
 trim = foldExpr $ \(EE l t errors _) inner' -> case errors of
   [] -> R.E l t <$> sequence inner'
-  _  -> do let errMsgs = fmap (\a -> Msg l a) errors
+  _  -> do let errMsgs = for errors $ \a -> Msg l a
            tell errMsgs
            _ <- sequence inner' -- report errors from further down the treex
            return $ R.Error $ errMsgs
@@ -76,7 +76,7 @@ rpDup = undefined
 -- | reports type errors
 rpTypeError :: ExprWithErrors C.Id -> ExprWithErrors C.Id
 rpTypeError = foldExpr $ \e@(EE _ t _ _) rest ->
-  err (merge e rest) $ fmap (R.TypeError t) $ getTypeErrors t
+  err (merge e rest) $ (R.TypeError t) <$> getTypeErrors t
   where
     getTypeErrors :: C.Type -> [R.TypeError]
     -- | deconstructs the type, accumulating errors
@@ -110,12 +110,12 @@ convID (EE l t errors e) = EE l t errors $ case e of
 
   Fun  bds e       -> Fun  bds $ r e
   FunT pts e       -> FunT pts $ r e
-  Let d e          -> Let      (fmap r d)           $ r e
-  Graph ds e       -> Graph    ((fmap . fmap) r ds) $ r e
-  App  f as        -> App      (r f)                $ fmap r as
-  AppT f ts        -> AppT     (r f)                  ts
-  Try e1 bd e2     -> Try      (r e1)                 bd $  r e2
-  Cases vt v cases -> Cases vt (r v) $ (fmap . fmap) r cases
+  Let d e          -> Let      (r <$> d)   $ r e
+  Graph ds e       -> Graph    (r <$$> ds) $ r e
+  App  f as        -> App      (r f)       $ r <$> as
+  AppT f ts        -> AppT     (r f)         ts
+  Try e1 bd e2     -> Try      (r e1) bd   $ r e2
+  Cases vt v cases -> Cases vt (r v)       $ r <$$> cases
 
   Ident (Bound   _ il is) -> Ident $ R.Bound il is
   Ident (Unbound      is) -> Ident $ R.Bound l is

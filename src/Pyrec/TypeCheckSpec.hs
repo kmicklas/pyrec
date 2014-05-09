@@ -59,7 +59,7 @@ testInfer :: T.Env -> String -> Either ParseError (Bool, R.Expr, R.Expr,
                                                    [R.ErrorMessage])
 testInfer env src = for (pd src) $ \case
   (e, errors) -> (e1' == e2', e1', e2', errors', e1r, e2r)
-    where errors'    = (fmap . fmap) R.Earlier errors
+    where errors'    = R.Earlier <$$> errors
           (e1', e1r) = runWriter $ checkReport env e
           (e2', e2r) = runWriter $ checkReport env $ strip e
 
