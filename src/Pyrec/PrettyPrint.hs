@@ -134,10 +134,11 @@ instance PrettyPrint D.BindN where
 
 instance PrettyPrint D.Type where
   pp = \case
-    D.T t -> pp t
-    D.TUnknown -> "?"
+    D.T t           -> pp t
+    D.TUnknown      -> "?"
     D.PartialObj fs -> curlyList $ (++ ["..."]) $
       for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
+    D.TError e      -> pp e
 
 instance PrettyPrint D.TypeError where
   pp = \case
