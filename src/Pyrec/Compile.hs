@@ -4,20 +4,21 @@ import qualified Data.Map          as M
 import           Data.Map               (Map)
 
 import           Pyrec.Misc
+import           Pyrec.Error
 
 import qualified Pyrec.IR         as IR
 import qualified Pyrec.IR.Core    as R
-import           Pyrec.IR.Desugar       (Loc, BindN(..))
+import           Pyrec.IR.Desugar       (BindN(..))
 import           Pyrec.IR.Check         (BindT(..))
 import           Pyrec.SSA
 
 type Env   = Map Id (IR.Decl () Id ())
 type Chunk = (Module, [Statement], Id)
 
-tempId :: Loc -> Id
+tempId :: Unique -> Id
 tempId l = "%temp$" ++ showLoc l
 
-constId :: Loc -> Id
+constId :: Unique -> Id
 constId l = "@const$" ++ showLoc l
 
 bound :: R.Id -> Id

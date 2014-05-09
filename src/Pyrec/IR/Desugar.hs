@@ -9,9 +9,8 @@ import qualified Data.Map          as M
 import           Data.Map                       (Map)
 import           Data.List
 
-import           Text.Parsec.Pos
-
 import           Pyrec.Error
+
 import qualified Pyrec.IR          as IR
 
 #ifdef TEST
@@ -22,15 +21,14 @@ import Test.QuickCheck          hiding ((.&.))
 import Pyrec.TestMisc
 #endif
 
-type Id  = String
-type Loc = SourcePos
+type Id = String
 
 data BindT
-  = BT Loc String Type
+  = BT Unique String Type
   deriving (Eq, Show)
 
 data BindN
-  = BN Loc String
+  = BN Unique String
   deriving (Eq, Show)
 
 data Type
@@ -39,8 +37,8 @@ data Type
   deriving (Eq, Show)
 
 data Expr
-  = E Loc Type (IR.Expr BindT BindN Id Type Expr)
-  | Constraint Loc Type Expr
+  = E Unique Type (IR.Expr BindT BindN Id Type Expr)
+  | Constraint Unique Type Expr
   deriving (Eq, Show)
 
 data Error

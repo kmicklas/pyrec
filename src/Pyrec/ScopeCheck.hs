@@ -15,13 +15,15 @@ import           Data.Traversable        hiding (for)
 
 import           Pyrec.Misc
 
+import           Pyrec.Error                    (Unique(..))
+
 import qualified Pyrec.IR          as IR        (Pattern)
 import           Pyrec.IR                hiding (Pattern)
 import           Pyrec.IR.Desugar  as D
 import qualified Pyrec.IR.Check    as C
 
 type Pattern = IR.Pattern D.BindT BindN
-data Entry   = Entry Loc DefType
+data Entry   = Entry Unique DefType
 type Env     = Map Id Entry
 type CK      = Reader Env
 

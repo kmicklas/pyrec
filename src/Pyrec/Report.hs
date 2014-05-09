@@ -14,7 +14,7 @@ import           Pyrec.Error
 
 import           Pyrec.IR
 import qualified Pyrec.IR.Desugar     as D
-import           Pyrec.IR.Desugar                (Loc, BindN(..))
+import           Pyrec.IR.Desugar                (BindN(..))
 import           Pyrec.IR.Check       as C
 import qualified Pyrec.IR.Core        as R
 
@@ -23,7 +23,7 @@ type RP     = Writer Errors
 
 -- | We use this to find errors in dead code too
 data ExprWithErrors i
-  = EE Loc C.Type [R.Error] (Pyrec.IR.Expr BindT BindN i C.Type (ExprWithErrors i))
+  = EE Unique C.Type [R.Error] (Pyrec.IR.Expr BindT BindN i C.Type (ExprWithErrors i))
   deriving (Eq, Show)
 
 report :: C.Expr -> RP R.Expr

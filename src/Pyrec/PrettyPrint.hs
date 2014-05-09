@@ -127,10 +127,10 @@ instance PrettyPrint R.Error where
     R.TypeError ty err -> pp err ++ " in " ++ pp ty
 
 instance PrettyPrint D.BindT where
-  pp (D.BT _ n t) = n ++ " :: " ++ pp t
+  pp (D.BT _ n t) = pp n ++ " :: " ++ pp t
 
 instance PrettyPrint D.BindN where
-  pp (D.BN _ n) = n
+  pp (D.BN _ n) = pp n
 
 instance PrettyPrint D.Type where
   pp = \case

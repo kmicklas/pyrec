@@ -8,8 +8,10 @@ module Pyrec.IR.Check where
 import qualified Data.Map         as M
 import           Data.Map         (Map)
 
+import           Pyrec.Error
+
 import qualified Pyrec.IR         as IR
-import           Pyrec.IR.Desugar (Loc, BindN)
+import           Pyrec.IR.Desugar (BindN)
 
 #ifdef TEST
 import Test.Hspec
@@ -20,12 +22,12 @@ import Pyrec.TestMisc
 #endif
 
 data Id
-  = Bound   {_dt :: IR.DefType, _l :: Loc, getId :: String }
-  | Unbound                               {getId :: String }
+  = Bound   {_dt :: IR.DefType, _l :: Unique, getId :: String }
+  | Unbound                                  {getId :: String }
   deriving (Eq, Show)
 
 data BindT
-  = BT Loc String Type
+  = BT Unique String Type
   deriving (Eq, Show)
 
 data Type
@@ -43,8 +45,8 @@ data TypeError
   deriving (Eq, Show)
 
 data Expr
-  = E Loc Type (IR.Expr BindT BindN Id Type Expr)
-  | Constraint Loc Type Expr
+  = E Unique Type (IR.Expr BindT BindN Id Type Expr)
+  | Constraint Unique Type Expr
   deriving (Eq, Show)
 
 #ifdef TEST

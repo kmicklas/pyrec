@@ -8,17 +8,17 @@ import Data.Map (Map)
 import           Pyrec.Error
 
 import qualified Pyrec.IR         as IR
-import           Pyrec.IR.Desugar      (Loc, BindN)
+import           Pyrec.IR.Desugar      (BindN)
 import qualified Pyrec.IR.Desugar as D
 import           Pyrec.IR.Check        (BindT, Type)
 import qualified Pyrec.IR.Check   as C
 
 data Id
-  = Bound Loc String
+  = Bound Unique String
   deriving (Eq, Show)
 
 data Expr
-  = E Loc Type (IR.Expr BindT BindN Id Type Expr)
+  = E Unique Type (IR.Expr BindT BindN Id Type Expr)
   | Error [ErrorMessage]
   deriving (Eq, Show)
 
@@ -32,9 +32,9 @@ data Error
   = Earlier D.Error
 
   | UnboundId String
-  | MutateVar Loc String
+  | MutateVar Unique String
 
-  | DupIdent DupType Loc String
+  | DupIdent DupType Unique String
 
   | TypeError C.Type TypeError
   deriving (Eq, Show)

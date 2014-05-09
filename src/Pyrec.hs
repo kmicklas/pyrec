@@ -38,25 +38,18 @@ import qualified Pyrec.Emit       as E
 pos = newPos "test" 1 . fromInteger
 
 foreignEnv :: T.Env
-foreignEnv = M.fromList $ fmap (uncurry numBinOp) [
-  (1000 , "@pyretPlus"  ),
-  (1001 , "@pyretMinus" ),
-  (1002 , "@pyretTimes" ),
-  (1003 , "@pyretDivide")
-  ]
-  where numBinOp l n =
-          ( D.BN (pos l) n
-          , Def Val (C.BT (pos l) n $ C.T $ TFun [ numT, numT] $ numT) ())
-        numT = C.T $ TIdent $ C.Bound Val (pos 8000) "Number"
+foreignEnv = M.fromList $ numBinOp <$> [ "@pyretPlus",  "@pyretMinus"
+                                       , "@pyretTimes", "@pyretDivide"]
+  where numBinOp n =
+          ( D.BN Intrinsic n
+          , Def Val (C.BT Intrinsic n $ C.T $ TFun [ numT, numT] $ numT) ())
+        numT = C.T $ TIdent $ C.Bound Val Intrinsic "Number"
 
 stdEnv :: T.Env
-stdEnv = M.fromList $ fmap (uncurry numBinOp) [
-  (8000 , "Number"),
-  (9000 , "String")
-  ]
-  where numBinOp l n =
-          ( D.BN (pos l) n
-          , Def Val (C.BT (pos l) n $ C.T $ TType) ())
+stdEnv = M.fromList $ numBinOp <$> ["Number", "String"]
+  where numBinOp n =
+          ( D.BN Intrinsic n
+          , Def Val (C.BT Intrinsic n $ C.T $ TType) ())
 
 env = M.union foreignEnv stdEnv
 

@@ -15,11 +15,12 @@ import           Data.Maybe                     (fromMaybe)
 import           Data.Traversable        hiding (for)
 
 import           Pyrec.Misc
+import           Pyrec.Error
 
 import qualified Pyrec.IR          as IR        (Pattern)
 import           Pyrec.IR                hiding (Pattern)
 import qualified Pyrec.IR.Desugar  as D
-import           Pyrec.IR.Desugar               (Loc, BindN(..))
+import           Pyrec.IR.Desugar               (BindN(..))
 import           Pyrec.IR.Check    as C
 
 deriving instance Ord BindN
@@ -54,8 +55,8 @@ tc env (C.Constraint _ t e) = fixType env e t
 tc env (C.E          l t e) = case e of
 
   -- Need too look up to get proper loc
---  Num n -> se (unify env t $ C.T $ TIdent "Number") $ Num n
---  Str s -> se (unify env t $ C.T $ TIdent "String") $ Str s
+  Num n -> se (unify env t $ C.T $ TIdent $ Bound Val Intrinsic "Number") $ Num n
+  Str s -> se (unify env t $ C.T $ TIdent $ Bound Val Intrinsic "String") $ Str s
 
   Ident (Unbound    _)       -> se TUnknown e
   e'@(Ident (Bound _ il ii)) ->  k e'
@@ -70,15 +71,15 @@ tc env (C.E          l t e) = case e of
           env'             = extendT b env
           e'@(C.E _ t'  _) = fixType env' e t
 
-  Let (Data i variants) e -> se t' $ Let data' e'
+  Let (Data i@(BN _ di) variants) e -> se t' $ Let data' e'
     where fixVariant :: Variant BindT BindN -> Variant BindT BindN
           fixVariant (Variant vi args) = Variant vi $ (fmap . fmap) fixField args
             where fixField :: BindT -> BindT
                   fixField (BT bl bi t) = BT bl bi $ checkT env1 t
 
           bindConstrs :: Variant C.BindT BindN -> (BindN , Entry)
-          bindConstrs (Variant i@(BN vl vi) ps) =
-            (i, Def Val (BT vl vi $ T $ k $ TIdent $ Bound Val vl vi) ())
+          bindConstrs (Variant b@(BN vl vi) ps) =
+            (b, Def Val (BT vl vi $ T $ k $ TIdent $ Bound Val l di) ())
             where k = case ps of
                     Nothing     -> id
                     Just params -> TFun (for params $ \(BT _ _ t) -> t) . T
