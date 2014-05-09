@@ -31,7 +31,7 @@ convModule :: Module -> DS D.Expr
 convModule (Module _ _ b) = convBlock b
 
 convBlock :: Block -> DS D.Expr
-convBlock (Statements stmts) = _ {-case stmts of
+convBlock (Statements stmts) = case stmts of
   []                             -> return $ D.E undefined (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
   (Node p (LetStmt _let) : rest) -> letCommon IR.Val p _let rest
   (Node p (VarStmt _let) : rest) -> letCommon IR.Var p _let rest
@@ -44,16 +44,21 @@ convBlock (Statements stmts) = _ {-case stmts of
 
         letCommon vv p (Let bd e) rest = do
           uniq <- mkUnique p
-          D.E uniq <*> pure D.TUnknown <*>
-          (IR.Let <$> (IR.Def vv <$> convBind bd <*> convExpr e)
-                  <*> afterDef rest)
-          where afterDef [] = do tell [Msg uniq D.EndBlockWithDef]
+          D.E uniq D.TUnknown <$>
+            (IR.Let <$> (IR.Def vv <$> convBind bd <*> convExpr e)
+                    <*> afterDef uniq rest)
+          where afterDef p [] = do tell [Msg p D.EndBlockWithDef]
                                    recur []
                 afterDef p1 rest@(Node p2 _ : _) =
-                  do when (sourceLine p1 == sourceLine p2) $
-                       tell [Msg p2 D.SameLineStatements]
+                  do u2 <- mkUnique p2
+                     when (sameLine p1 u2) $
+                       tell [Msg u2 D.SameLineStatements]
                      recur rest
--}
+                sameLine :: Unique -> Unique -> Bool
+                sameLine (User a _ ) (User b _ ) = sourceLine a == sourceLine b
+                sameLine _           _           = False
+                
+
 convBind :: Bind Id -> DS D.BindT
 convBind (Bind (Node p id) ty) = D.BT <$> mkUnique p <*> pure id <*> convMaybeType ty
 

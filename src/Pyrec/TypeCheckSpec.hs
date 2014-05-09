@@ -44,8 +44,6 @@ import qualified Pyrec.Desugar    as D
 import           Pyrec.ScopeCheck as S
 import           Pyrec.TypeCheck  as T
 import qualified Pyrec.Report     as R
-import qualified Pyrec.Compile    as O
-import qualified Pyrec.Emit       as E
 
 strip (D.E          l t e) = D.E l t $ strip <$> e
 strip (D.Constraint _ _ e) = strip e
