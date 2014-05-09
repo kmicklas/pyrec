@@ -13,6 +13,8 @@ import Pyrec.CPS
 
 import LLVM.General.AST hiding (Name)
 import LLVM.General.AST.CallingConvention
+import LLVM.General.AST.Linkage
+import LLVM.General.AST.Visibility
 
 import qualified LLVM.General.AST as AST (Name(..))
 
@@ -50,7 +52,7 @@ instr i = tell $ ([],) $ return $ i
 
 lname :: Name -> LName
 lname = \case
-  Name n p -> AST.Name $ n ++ "$" ++ showLoc p
+  Name n p -> AST.Name $ n ++ "$" ++ show p
   Gen n    -> AST.UnName n
 
 llvm :: Expr -> LLVM LName
@@ -66,14 +68,34 @@ llvm = \case
        fids <- sequence $ llvmFun closureVars <$> fns
        env <- llvmEnv closureVars
        sequence $ llvmClosure env <$>
-         zip (lname <$> fids) (funName <$> fns)
+         zip fids (funName <$> fns)
        llvm e
 
-llvmFun :: [Name] -> Fun -> LLVM Name
-llvmFun cvs (Fun n args (rc, ec) e) = undefined
+llvmFun :: [Name] -> Fun -> LLVM LName
+llvmFun cvs (Fun n args (rc, ec) e) =
+  do tell $ (,[]) $ return $ GlobalDefinition $
+       Function Private
+                Hidden
+                C
+                []
+                pVal
+                n'
+                (params, False) 
+                []
+                Nothing
+                0
+                Nothing
+                [block]
+     return n'
+  where n'     = lname n
+        params = _
+        block  = _
 
 llvmEnv :: [Name] -> LLVM Name
 llvmEnv ns = undefined
 
 llvmClosure :: Name -> (LName, Name) -> LLVM ()
 llvmClosure env (ln, n) = undefined
+
+pVal :: Type
+pVal = _
