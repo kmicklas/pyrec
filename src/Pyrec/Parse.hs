@@ -32,14 +32,10 @@ import_ = node $ do kw "import"
                       kw "as" >> ImportQualified name <$> iden
 
 block :: Parse Block
-block = Statements <$> many stmt
+block = Statements <$> many expr
 
-stmt :: Parse (Node Expr)
-stmt = node $  try letStmt
-           <|> try varStmt
-           <|> funStmt -- no try because we do it internally
-           <|> try assignStmt
-           <|> expr
+expr :: Parse (Node Expr)
+expr = node (letStmt <|> try varStmt <|> try assignStmt) <|> opExpr
 
 letStmt :: Parse Expr
 letStmt = LetStmt <$> let_
@@ -48,20 +44,10 @@ varStmt :: Parse Expr
 varStmt = kw "var" *> (VarStmt <$> let_)
 
 let_ :: Parse (Let Id)
-let_ = Let <$> idenBind <* kw "=" <*> expr
+let_ = Let <$> try idenBind <* kw "=" <*> expr
 
 assignStmt :: Parse Expr
-assignStmt = AssignStmt <$> iden <* kw ":=" <*> expr
-
-funStmt :: Parse Expr
-funStmt = try ((kw "fun" *>) $
-                  FunStmt <$> optionMaybe typeParams)
-                    <*> iden
-                    <*> optionMaybe params
-                    <*> optionMaybe (kw "->" *> type_)
-                    <* begin
-                    <*> block
-                    <* end
+assignStmt = AssignStmt <$> try iden <* kw ":=" <*> expr
 
 typeParams :: Parse [Id]
 typeParams = angleNoSpace *> sepBy iden (kw ",") <* close '>'
@@ -78,12 +64,12 @@ keyBind  = bind key
 type_ :: Parse (Node Type)
 type_ = node $ TIdent <$> iden
 
-expr :: Parse (Node Expr)
-expr = do first@(Node l _) <- appVal
-          rest <- many $ (,) <$> choice binOps <*> appVal
-          if null rest
-          then return first
-          else return $ Node l $ BinOp first rest
+opExpr :: Parse (Node Expr)
+opExpr = do first@(Node l _) <- appVal
+            rest <- many $ (,) <$> choice binOps <*> appVal
+            if null rest
+            then return first
+            else return $ Node l $ BinOp first rest
 
 pfoldl :: Parse a -> Parse (a -> a) -> Parse a
 pfoldl p f = foldl (flip ($)) <$> p <*> many f
