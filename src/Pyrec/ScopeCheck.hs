@@ -40,7 +40,7 @@ bindTParam (BT l i _) = (i, Entry l Val)
 bindT :: Env -> BindT -> C.BindT
 bindT env (BT l i t) = C.BT l i $ scT env t
 
-newID env i = case M.lookup i env of
+newId env i = case M.lookup i env of
   Nothing           -> C.Unbound    i
   Just (Entry l dt) -> C.Bound dt l i
 
@@ -48,14 +48,13 @@ scT :: Env -> D.Type -> C.Type
 scT _   TUnknown = C.TUnknown
 scT env (D.T t)  = C.T $ case t of
   TType             -> TType  
-  TIdent i          -> TIdent $ newID env i
+  TIdent i          -> TIdent $ newId env i
   TFun   params ret -> TFun   (rT <$> params) $ rT ret
   TParam params ret -> TParam params          $ scT env' ret
     where env' = extendMap env $ M.fromList $ bindNParam <$> params
   TObject fields    -> TObject $ rT <$> fields
 
-  where rE = scE env
-        rT = scT env
+  where rT = scT env
 
 scE :: Env -> D.Expr -> C.Expr
 scE env (D.Constraint l t e) = C.Constraint l (scT env t) (scE env e)
@@ -87,8 +86,8 @@ scE env (D.E          l t e) = C.E l (rT t) $ case e of
   App  f args -> App  (rE f) (rE <$> args)
   AppT f args -> AppT (rE f) (rT <$> args)
 
-  Ident  i   -> Ident              $ newID env i
-  Assign i v -> flip Assign (rE v) $ newID env i
+  Ident  i   -> Ident              $ newId env i
+  Assign i v -> flip Assign (rE v) $ newId env i
 
   Cases vt v cases -> Cases (rT vt) (rE v) $ c <$> cases
     where c (Case p e) = Case (pat' p) $ scE (M.union env $ accum p) e
