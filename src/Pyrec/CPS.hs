@@ -1,10 +1,10 @@
 module Pyrec.CPS where
 
 import Data.Word
-import Text.Parsec.Pos
+import Pyrec.Misc
 
 data Name
-  = Name String SourcePos
+  = Name String Unique
   | Gen Word
   deriving (Show, Eq, Ord)
 
@@ -16,6 +16,7 @@ data Val
 
 data Expr
   = App Val [Val] (Val, Val)
+  | Cont Val Val
   | Fix [Fun] Expr
   deriving (Show, Eq)
 
