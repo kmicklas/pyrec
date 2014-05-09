@@ -36,6 +36,7 @@ tokens :-
   end|\;                              { tok $ \ s -> Kw s }
   $digit+                             { tok $ \ s -> TNum (read s) }
   $idenStart$idenChar*                { tok $ \ s -> Iden s }
+  $white^[\(\<\[\{]                   { tok $ \ s -> Open  s True  }
   [\(\<\[\{]                          { tok $ \ s -> Open  s False }
   [\)\>\]\}]                          { tok $ \ s -> Close s       }
   .                                   { tok $ \ s -> Error s       }

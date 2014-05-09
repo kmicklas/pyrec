@@ -206,8 +206,8 @@ kw w = tok $ \case Kw s | w == s -> Just ()
                    _             -> Nothing
 
 openSpace :: Bool -> Char -> Parse ()
-openSpace s c = tok $ \case Open [c'] s' | (s, c) == (s', c) -> Just ()
-                            _                                -> Nothing
+openSpace s c = tok $ \case Open [c'] s' | (s, c) == (s', c') -> Just ()
+                            _                                 -> Nothing
 
 parenWithSpace = openSpace True  '('
 parenNoSpace   = openSpace False '('
