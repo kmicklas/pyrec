@@ -8,7 +8,7 @@ module Pyrec.IR.Check where
 import qualified Data.Map         as M
 import           Data.Map         (Map)
 
-import           Pyrec.Error
+import           Pyrec.Misc
 
 import qualified Pyrec.IR         as IR
 import           Pyrec.IR.Desugar (BindN)

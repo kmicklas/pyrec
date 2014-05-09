@@ -15,8 +15,6 @@ import           Data.Traversable        hiding (for)
 
 import           Pyrec.Misc
 
-import           Pyrec.Error                    (Unique(..))
-
 import qualified Pyrec.IR          as IR        (Pattern)
 import           Pyrec.IR                hiding (Pattern)
 import           Pyrec.IR.Desugar  as D

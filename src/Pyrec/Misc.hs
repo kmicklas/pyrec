@@ -1,15 +1,33 @@
 {-# LANGUAGE DeriveFunctor, DeriveFoldable, DeriveTraversable #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE CPP #-}
+
+{-# OPTIONS_GHC -F -pgmFderive -optF-F #-}
 
 module Pyrec.Misc where
 
 import Control.Applicative
+
+import Data.Word
 
 import Data.Hashable
 import Data.Foldable
 import Data.Traversable hiding (for)
 
 import Text.Parsec.Pos
+
+#ifdef TEST
+import Test.Hspec
+import Test.Hspec.QuickCheck    (prop)
+import Test.QuickCheck          hiding ((.&.))
+
+import Pyrec.TestMisc
+#endif
+
+data Unique
+  = Intrinsic
+  | User SourcePos Word
+  deriving (Eq, Ord, Show)
 
 -- | should be pretty self explanatory
 for :: Functor f => f a -> (a -> b) -> f b
@@ -29,3 +47,9 @@ showLoc p = show $ abs $ hash (sourceName p,
 infixr 9 <.>
 (<.>) :: Functor f => (a1 -> b) -> (a -> f a1) -> a -> f b
 a <.> b = fmap a . b
+
+#ifdef TEST
+{-!
+deriving instance Arbitrary Unique
+!-}
+#endif

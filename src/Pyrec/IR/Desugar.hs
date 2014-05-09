@@ -9,6 +9,7 @@ import qualified Data.Map          as M
 import           Data.Map                       (Map)
 import           Data.List
 
+import           Pyrec.Misc
 import           Pyrec.Error
 
 import qualified Pyrec.IR          as IR

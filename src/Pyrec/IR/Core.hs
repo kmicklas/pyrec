@@ -5,6 +5,7 @@ import Control.Applicative
 
 import Data.Map (Map)
 
+import           Pyrec.Misc
 import           Pyrec.Error
 
 import qualified Pyrec.IR         as IR
