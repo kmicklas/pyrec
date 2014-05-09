@@ -65,11 +65,16 @@ type_ :: Parse (Node Type)
 type_ = node $ TIdent <$> iden
 
 opExpr :: Parse (Node Expr)
-opExpr = do first@(Node l _) <- appVal
-            rest <- many $ (,) <$> choice binOps <*> appVal
+opExpr = do first@(Node l _) <- unExpr
+            rest <- many $ (,) <$> choice binOps <*> unExpr
             if null rest
             then return first
             else return $ Node l $ BinOp first rest
+
+unExpr :: Parse (Node Expr)
+unExpr = (node $ UnOp "not" <$> (kw "not" *> unExpr)
+             <|> Doc <$> (kw "doc:" *> unExpr))
+         <|> appVal
 
 pfoldl :: Parse a -> Parse (a -> a) -> Parse a
 pfoldl p f = foldl (flip ($)) <$> p <*> many f
@@ -128,7 +133,7 @@ ifExpr = (kw "if" *>) $ If <$> ((:) <$> branch
                                     <*> (many $ try (kw "else")
                                                   *> kw "if"
                                                   *> branch))
-                           <*> optionMaybe (kw "else" *> begin *> block)
+                           <*> optionMaybe (kw "else:" *> block)
                            <* end
 
 branch :: Parse Branch

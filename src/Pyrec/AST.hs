@@ -68,6 +68,7 @@ data Expr
   | Str String
   | Ident Id
   | Obj [Node Field]
+  | Doc (Node Expr)
 
   | App  (Node Expr) [Node Expr]
   | AppT (Node Expr) [Node Type]
