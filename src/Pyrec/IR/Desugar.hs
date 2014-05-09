@@ -36,15 +36,6 @@ data BindN
 data Type
   = T (IR.Type BindN Id Type)
   | TUnknown
-  | PartialObj (Map IR.FieldName Type)
-  | TError TypeError
-  deriving (Eq, Show)
-
--- the type checking algorithm insists we use
--- the same Type adt before and after checking
-data TypeError
-  = TypeMismatch {expected :: Type, got :: Type}
-  | CantCaseAnalyze               { got :: Type}
   deriving (Eq, Show)
 
 data Expr
@@ -64,7 +55,6 @@ type ErrorMessage = Message Error
 deriving instance Arbitrary BindT
 deriving instance Arbitrary BindN
 deriving instance Arbitrary Type
-deriving instance Arbitrary TypeError
 deriving instance Arbitrary Expr
 deriving instance Arbitrary Error
 !-}

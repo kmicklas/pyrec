@@ -8,8 +8,9 @@ import Data.Map (Map)
 import           Pyrec.Error
 
 import qualified Pyrec.IR         as IR
-import           Pyrec.IR.Desugar      (Loc, BindN, BindT, Type)
+import           Pyrec.IR.Desugar      (Loc, BindN)
 import qualified Pyrec.IR.Desugar as D
+import           Pyrec.IR.Check        (BindT, Type)
 import qualified Pyrec.IR.Check   as C
 
 data Id
@@ -39,7 +40,7 @@ data Error
   deriving (Eq, Show)
 
 data TypeError
-  = TEEarlier D.TypeError
+  = TEEarlier C.TypeError
   | AmbiguousType
   | PartialObj (Map IR.FieldName D.Type)
   deriving (Eq, Show)
