@@ -9,8 +9,8 @@ import Pyrec.Misc
 %wrapper "posn"
 
 $digit     = [0-9]
-$idenStart = [a-zA-Z]
-$idenChar  = [a-zA-Z0-9\-]
+$idenStart = [a-zA-Z_]
+$idenChar  = [a-zA-Z_0-9\-]
 
 tokens :-
 
@@ -39,7 +39,7 @@ tokens :-
   [\(\<\[\{]                          { tok $ \ s -> Open  s False }
   [\)\>\]\}]                          { tok $ \ s -> Close s       }
   .                                   { tok $ \ s -> Error s       }
-  \"[^\"]*\"                          { tok $ \ s -> TStr (read s) }
+  \"(\n|[^\"\n])*\"                   { tok $ \ s -> TStr (read s) }
 
 {
 data Token = Token SourcePos Tok
