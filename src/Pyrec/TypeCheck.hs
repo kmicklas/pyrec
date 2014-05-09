@@ -33,18 +33,15 @@ type CK      = Reader Env
 extendMap :: Map BindN a -> Map BindN a -> Map BindN a
 extendMap = flip M.union
 
-emptyEnv :: Env
-emptyEnv = M.empty
-
 bindNParam :: BindN -> (BindN, Entry)
 bindNParam k@(BN l i) = (k, Def Val (BT l i $ C.T TType) ())
-
-extendN = uncurry M.insert . bindNParam
 
 bindTParam :: BindT -> (BindN, Entry)
 bindTParam (BT l i t) = (BN l i, Def Val (BT l i t) ())
 
+extendT :: BindT -> Map BindN Entry -> Map BindN Entry
 extendT = uncurry M.insert . bindTParam
+
 
 fixType :: Env -> C.Expr -> C.Type -> C.Expr
 fixType env (C.Constraint _ et e) t = fixType env e $ unify env t et
@@ -58,8 +55,8 @@ tc env (C.E          l t e) = case e of
   Num n -> se (unify env t $ C.T $ TIdent $ Bound Val Intrinsic "Number") $ Num n
   Str s -> se (unify env t $ C.T $ TIdent $ Bound Val Intrinsic "String") $ Str s
 
-  Ident (Unbound    _)       -> se TUnknown e
-  e'@(Ident (Bound _ il ii)) ->  k e'
+  Ident (Unbound     _) -> se TUnknown e
+  Ident (Bound _ il ii) -> k e
     where k = case M.lookup (BN il ii) env of
             Nothing                    -> error "internal: identifier was reported bound"
             Just (Def _ (BT _ _ t') _) -> se $ unify env t t'
@@ -218,8 +215,6 @@ tc env (C.E          l t e) = case e of
 
   where se = C.E l
 
-
-stripBN (BN _ n) = n
 
 subst :: Map BindN C.Type -> C.Type -> C.Type
 subst substs = \case
