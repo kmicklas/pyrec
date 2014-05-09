@@ -66,7 +66,7 @@ llvm = \case
        fids <- sequence $ llvmFun closureVars <$> fns
        env <- llvmEnv closureVars
        sequence $ llvmClosure env <$>
-         zip (lname <$> fids) (for fns $ \ (Fun n _ _ _) -> n)
+         zip (lname <$> fids) (funName <$> fns)
        llvm e
 
 llvmFun :: [Name] -> Fun -> LLVM Name
