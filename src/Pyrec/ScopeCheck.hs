@@ -96,7 +96,7 @@ scE env (D.E          l t e) = C.E l (rT t) $ case e of
             (Constr c pats)      -> Constr c $ pat' <$$> pats
           accum = \case
             (Binding (BT l i _)) -> M.singleton i $ Entry l Val
-            (Constr _ pats)      -> fromMaybe M.empty $ M.unions <$> accum <$$> pats
+            (Constr _ pats)      -> fromMaybe M.empty $ M.unions <$> (accum <$$> pats)
 
   EmptyObject      -> EmptyObject
   Extend obj fi fv -> Extend (rE obj) fi (rE fv)

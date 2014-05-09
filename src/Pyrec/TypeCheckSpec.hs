@@ -7,6 +7,7 @@ import           Prelude                  hiding (map, mapM)
 import           Control.Applicative
 import           Control.Monad            hiding (mapM, forM)
 import           Control.Monad.Writer     hiding (mapM, forM, sequence)
+import           Control.Monad.RWS        hiding (mapM, forM, sequence)
 
 import qualified Data.Map                 as M
 import           Data.Map                 (Map)
@@ -48,8 +49,8 @@ import qualified Pyrec.Report     as R
 strip (D.E          l t e) = D.E l t $ strip <$> e
 strip (D.Constraint _ _ e) = strip e
 
-pd :: String -> Either ParseError (D.Expr, [D.ErrorMessage])
-pd = runWriter <.> parseDesugar
+pd :: String -> Either ParseError (D.Expr, Word, [D.ErrorMessage])
+pd = (\m -> runRWS m () 0) <.> parseDesugar
 
 testInfer :: T.Env -> String -> Either ParseError (Bool, R.Expr, R.Expr,
                                                    [R.ErrorMessage],

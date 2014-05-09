@@ -57,7 +57,7 @@ convBlock (Statements stmts) = case stmts of
                 sameLine :: Unique -> Unique -> Bool
                 sameLine (User a _ ) (User b _ ) = sourceLine a == sourceLine b
                 sameLine _           _           = False
-                
+
 
 convBind :: Bind Id -> DS D.BindT
 convBind (Bind (Node p id) ty) = D.BT <$> mkUnique p <*> pure id <*> convMaybeType ty
