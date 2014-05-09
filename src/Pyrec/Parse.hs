@@ -44,10 +44,10 @@ varStmt :: Parse Expr
 varStmt = kw "var" *> (VarStmt <$> let_)
 
 let_ :: Parse (Let Id)
-let_ = Let <$> try idenBind <* kw "=" <*> expr
+let_ = Let <$> try (idenBind <* (kw "=")) <*> expr
 
 assignStmt :: Parse Expr
-assignStmt = AssignStmt <$> try iden <* kw ":=" <*> expr
+assignStmt = AssignStmt <$> try (iden <* kw ":=") <*> expr
 
 typeParams :: Parse [Id]
 typeParams = angleNoSpace *> sepBy iden (kw ",") <* close '>'
