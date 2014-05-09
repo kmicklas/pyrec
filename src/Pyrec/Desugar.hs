@@ -73,30 +73,30 @@ convExpr (Node p e) = case e of
   Num n             -> return $ mkT (IR.TIdent "Number") $ IR.Num n
   Ident (Node _ id) -> return $ mkU $ IR.Ident id
 
-  Fun Nothing Nothing Nothing     body -> convBlock $ body
-  Fun Nothing Nothing (Just retT) body ->
+  Fun Nothing Nothing Nothing Nothing     body -> convBlock $ body
+  Fun Nothing Nothing Nothing (Just retT) body ->
     convExpr  $ rebuild $ TypeConstraint (rebuild $ Block body) retT
 
-  Fun (Just tparams) Nothing       retT body -> mkT <$> t <*> body'
+  Fun (Just tparams) Nothing Nothing retT body -> mkT <$> t <*> body'
     where tparams' = mapM convBN tparams
           t        = IR.TParam <$> tparams' <*> convMaybeType retT
           body'    = IR.FunT   <$> tparams' <*> convBlock     body
 
-  Fun Nothing        (Just params) retT body -> mkT <$> t <*> body'
+  Fun Nothing Nothing (Just params) retT body -> mkT <$> t <*> body'
     where binds    = mapM convBind params
           types    = (fmap . fmap) (\(D.BT _ _ t) -> t) binds
           t        = IR.TFun <$> types <*> convMaybeType retT
           body'    = IR.Fun  <$> binds <*> convBlock     body
 
-  Fun tparams params retT body ->
-    convExpr $ rebuild $ Fun tparams Nothing Nothing
-    $ Statements $ [rebuild $ Fun Nothing params retT body]
+  Fun tparams Nothing params retT body ->
+    convExpr $ rebuild $ Fun tparams Nothing Nothing Nothing
+    $ Statements $ [rebuild $ Fun Nothing Nothing params retT body]
 
   App  f args -> fmap mkU $ IR.App  <$> convExpr f <*> sequence (convExpr <$> args)
   AppT f args -> fmap mkU $ IR.AppT <$> convExpr f <*> sequence (convType <$> args)
 
   UnOp  tok e           -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e]
-  BinOp e  []           -> error "ill-formed binop chain"
+  BinOp e  []           -> error "empty binop chain"
   BinOp e1 [(tok,e2)]   -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e1, e2]
   BinOp e1 ((tok,e2):r) -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e1, rebuild $ BinOp e2 r]
 

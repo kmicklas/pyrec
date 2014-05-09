@@ -62,7 +62,6 @@ data Expr
   | VarStmt (Let Id)
   | AssignStmt Id (Node Expr)
   | Graph Block
-  | FunStmt (Maybe [Id]) Id (Maybe [Bind Id]) (Maybe (Node Type)) Block
   | Data Id (Maybe [Id]) [Variant]
 
   | Num Double
@@ -76,7 +75,7 @@ data Expr
   | UnOp String (Node Expr)
   | BinOp (Node Expr) [(String, Node Expr)]
 
-  | Fun (Maybe [Id]) (Maybe [Bind Id]) (Maybe (Node Type)) Block
+  | Fun (Maybe [Id]) (Maybe Id) (Maybe [Bind Id]) (Maybe (Node Type)) Block
   | Block Block
   | If [Branch] (Maybe Block)
   | Cases (Maybe (Node Type)) (Node Expr) [Case]

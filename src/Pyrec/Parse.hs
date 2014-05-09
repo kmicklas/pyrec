@@ -100,6 +100,7 @@ val = node $  Ident <$> iden
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
             Fun <$> optionMaybe typeParams
+                <*> optionMaybe iden
                 <*> optionMaybe params
                 <*> optionMaybe (kw "->" *> type_)
                 <* begin
