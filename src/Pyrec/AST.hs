@@ -39,17 +39,7 @@ data ModuleName
   deriving (Eq, Show, Ord)
 
 newtype Block
-  = Statements [Node Statement]
-  deriving (Eq, Show, Ord)
-
-data Statement
-  = ExprStmt (Node Expr)
-  | LetStmt (Let Id)
-  | VarStmt (Let Id)
-  | AssignStmt Id (Node Expr)
-  | Graph Block
-  | FunStmt (Maybe [Id]) Id (Maybe [Bind Id]) (Maybe (Node Type)) Block
-  | Data Id (Maybe [Id]) [Variant]
+  = Statements [Node Expr]
   deriving (Eq, Show, Ord)
 
 data Variant
@@ -68,7 +58,14 @@ data Type
   deriving (Eq, Show, Ord)
 
 data Expr
-  = Num Double
+  = LetStmt (Let Id)
+  | VarStmt (Let Id)
+  | AssignStmt Id (Node Expr)
+  | Graph Block
+  | FunStmt (Maybe [Id]) Id (Maybe [Bind Id]) (Maybe (Node Type)) Block
+  | Data Id (Maybe [Id]) [Variant]
+
+  | Num Double
   | Str String
   | Ident Id
   | Obj [Node Field]

@@ -34,26 +34,26 @@ import_ = node $ do kw "import"
 block :: Parse Block
 block = Statements <$> many stmt
 
-stmt :: Parse (Node Statement)
+stmt :: Parse (Node Expr)
 stmt = node $  try letStmt
            <|> try varStmt
            <|> funStmt -- no try because we do it internally
            <|> try assignStmt
-           <|> (ExprStmt <$> expr)
+           <|> expr
 
-letStmt :: Parse Statement
+letStmt :: Parse Expr
 letStmt = LetStmt <$> let_
 
-varStmt :: Parse Statement
+varStmt :: Parse Expr
 varStmt = kw "var" *> (VarStmt <$> let_)
 
 let_ :: Parse (Let Id)
 let_ = Let <$> idenBind <* kw "=" <*> expr
 
-assignStmt :: Parse Statement
+assignStmt :: Parse Expr
 assignStmt = AssignStmt <$> iden <* kw ":=" <*> expr
 
-funStmt :: Parse Statement
+funStmt :: Parse Expr
 funStmt = try ((kw "fun" *>) $
                   FunStmt <$> optionMaybe typeParams)
                     <*> iden

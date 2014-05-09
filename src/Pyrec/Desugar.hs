@@ -25,13 +25,13 @@ convModule (Module _ _ b) = convBlock b
 
 convBlock :: Block -> DS D.Expr
 convBlock (Statements stmts) = case stmts of
-  []                           -> return $ D.E undefined (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
-  [Node p (ExprStmt e)]        -> convExpr e
-  (Node p (ExprStmt e) : rest) ->
-    recur $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p)
-                                                        Nothing) e)) : rest
+  []                             -> return $ D.E undefined (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
   (Node p (LetStmt _let) : rest) -> letCommon IR.Val p _let rest
   (Node p (VarStmt _let) : rest) -> letCommon IR.Var p _let rest
+  (Node p e              : rest) ->
+    recur $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p)
+                                       Nothing) e)) : rest
+  [Node p e]                     -> convExpr e
 
   where recur = convBlock . Statements
 
@@ -90,7 +90,7 @@ convExpr (Node p e) = case e of
 
   Fun tparams params retT body ->
     convExpr $ rebuild $ Fun tparams Nothing Nothing
-    $ Statements $ [rebuild $ ExprStmt $ rebuild $ Fun Nothing params retT body]
+    $ Statements $ [rebuild $ rebuild $ Fun Nothing params retT body]
 
   App  f args -> fmap mkU $ IR.App  <$> convExpr f <*> sequence (convExpr <$> args)
   AppT f args -> fmap mkU $ IR.AppT <$> convExpr f <*> sequence (convType <$> args)
