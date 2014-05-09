@@ -25,11 +25,12 @@ cps (rc, ec) (R.E _ _ e) = case e of
 
   IR.Ident (R.Bound l n) -> return $ k $ Var $ Name n l
 
-  IR.Fun args b -> k <$> do rc' <- gen
-                            ec' <- gen
-                            f  <- gen
-                            b' <- cps (rc', ec') b
-                            return $ Fix [Fun f argNames (rc', ec') b']
+  IR.Fun args b -> do rc' <- gen
+                      ec' <- gen
+                      f  <- gen
+                      b' <- cps (rc', ec') b
+                      return $ Fix [Fun f argNames (rc', ec') b'] $ k $ Var f
     where argNames = for args $ \ (C.BT l n _) -> Name n l
 
-  where k = Cont (Var rc)
+  where k :: Val -> Expr
+        k = Cont (Var rc)
