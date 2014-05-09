@@ -1,5 +1,3 @@
-{-# LANGUAGE TupleSections #-}
-
 module Pyrec.Check where
 
 import           Prelude                 hiding (mapM, sequence)
