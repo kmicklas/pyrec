@@ -36,13 +36,13 @@ data Error
 
   | DupIdent DupType Loc String
 
-  | TypeError D.Type TypeError
+  | TypeError C.Type TypeError
   deriving (Eq, Show)
 
 data TypeError
   = TEEarlier C.TypeError
   | AmbiguousType
-  | PartialObj (Map IR.FieldName D.Type)
+  | PartialObj (Map IR.FieldName C.Type)
   deriving (Eq, Show)
 
 type ErrorMessage = Message Error

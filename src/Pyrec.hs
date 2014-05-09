@@ -23,11 +23,13 @@ import qualified Pyrec.AST        as A
 import           Pyrec.IR
 
 import qualified Pyrec.IR.Desugar as D
+import qualified Pyrec.IR.Check   as C
 import qualified Pyrec.IR.Core    as R
 
 import qualified Pyrec.Parse      as P
 import qualified Pyrec.Desugar    as D
-import qualified Pyrec.Check      as C
+import qualified Pyrec.ScopeCheck as S
+import qualified Pyrec.TypeCheck  as T
 import qualified Pyrec.Report     as R
 import qualified Pyrec.Compile    as O
 import qualified Pyrec.Emit       as E
@@ -35,7 +37,7 @@ import qualified Pyrec.Emit       as E
 
 pos = newPos "test" 1 . fromInteger
 
-foreignEnv :: Map String (Decl D.BindT bn ())
+foreignEnv :: T.Env
 foreignEnv = M.fromList $ fmap (uncurry numBinOp) [
   (1000 , "@pyretPlus"  ),
   (1001 , "@pyretMinus" ),
@@ -43,16 +45,18 @@ foreignEnv = M.fromList $ fmap (uncurry numBinOp) [
   (1003 , "@pyretDivide")
   ]
   where numBinOp l n =
-          ( n
-          , Def Val (D.BT (pos l) n $ D.T $ TFun [D.T $ TIdent "Number", D.T $ TIdent "Number"] $ D.T $ TIdent "Number") ())
+          ( D.BN (pos l) n
+          , Def Val (C.BT (pos l) n $ C.T $ TFun [ numT, numT] $ numT) ())
+        numT = C.T $ TIdent $ C.Bound Val (pos 8000) "Number"
 
+stdEnv :: T.Env
 stdEnv = M.fromList $ fmap (uncurry numBinOp) [
   (8000 , "Number"),
   (9000 , "String")
   ]
   where numBinOp l n =
-          ( n
-          , Def Val (D.BT (pos l) n $ D.T $ TType) ())
+          ( D.BN (pos l) n
+          , Def Val (C.BT (pos l) n $ C.T $ TType) ())
 
 env = M.union foreignEnv stdEnv
 
@@ -61,15 +65,19 @@ env = M.union foreignEnv stdEnv
 compileEmit :: R.Expr -> String
 compileEmit = E.emit . O.compile
 
-checkReport :: C.Env -> D.Expr -> R.RP R.Expr
-checkReport foreignEnv = R.report . C.tc foreignEnv
+checkReport :: T.Env -> D.Expr -> R.RP R.Expr
+checkReport env =  R.report . T.tc env
+                          . (S.scE $ trim2 <$> M.mapKeys trim1 env)
+  where trim1 (D.BN _ i) = i
+        trim2 = \case (Def dt (C.BT l _ _) _) -> S.Entry l dt
+                      (Data   (D.BN l _)   _) -> S.Entry l Val
 
 parseDesugar :: String -> Either ParseError (D.DS D.Expr)
 parseDesugar = D.convModule <.> P.parseString P.program
 
 
-parseEmit :: C.Env -> String -> Either ParseError (Writer R.Errors String)
-parseEmit foreignEnv =
-  (compileEmit <.> checkReport foreignEnv <=<
+parseEmit :: T.Env -> String -> Either ParseError (Writer R.Errors String)
+parseEmit env =
+  (compileEmit <.> checkReport env <=<
    (mapWriter $ fmap . fmap . fmap $ R.Earlier)) <.> parseDesugar
 

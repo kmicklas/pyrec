@@ -7,7 +7,8 @@ import           Pyrec.Misc
 
 import qualified Pyrec.IR         as IR
 import qualified Pyrec.IR.Core    as R
-import           Pyrec.IR.Desugar       (Loc, BindT(BT), BindN(BN))
+import           Pyrec.IR.Desugar       (Loc, BindN(..))
+import           Pyrec.IR.Check         (BindT(..))
 import           Pyrec.SSA
 
 type Env   = Map Id (IR.Decl () Id ())

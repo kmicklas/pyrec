@@ -1,6 +1,6 @@
 {-# LANGUAGE EmptyCase #-}
 
-module Pyrec.Check where
+module Pyrec.ScopeCheck where
 
 import           Prelude                 hiding (mapM, sequence)
 

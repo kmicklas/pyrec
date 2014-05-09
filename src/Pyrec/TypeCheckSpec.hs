@@ -1,6 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 
-module Pyrec.CheckSpec where
+module Pyrec.TypeCheckSpec where
 
 import           Prelude                  hiding (map, mapM)
 
@@ -35,23 +35,25 @@ import qualified Pyrec.AST        as A
 
 import           Pyrec.IR
 
-import           Pyrec.IR.Desugar as D
+import qualified Pyrec.IR.Desugar as D
+import           Pyrec.IR.Check   as C
 import qualified Pyrec.IR.Core    as R
 
 import qualified Pyrec.Parse      as P
 import qualified Pyrec.Desugar    as D
-import           Pyrec.Check      as C
+import           Pyrec.ScopeCheck as S
+import           Pyrec.TypeCheck  as T
 import qualified Pyrec.Report     as R
 import qualified Pyrec.Compile    as O
 import qualified Pyrec.Emit       as E
 
-strip (E          l t e) = E l t $ strip <$> e
-strip (Constraint _ _ e) = strip e
+strip (D.E          l t e) = D.E l t $ strip <$> e
+strip (D.Constraint _ _ e) = strip e
 
 pd :: String -> Either ParseError (D.Expr, [D.ErrorMessage])
 pd = runWriter <.> parseDesugar
 
-testInfer :: C.Env -> String -> Either ParseError (Bool, R.Expr, R.Expr,
+testInfer :: T.Env -> String -> Either ParseError (Bool, R.Expr, R.Expr,
                                                    [R.ErrorMessage],
                                                    [R.ErrorMessage],
                                                    [R.ErrorMessage])
@@ -81,7 +83,7 @@ spec = unifySpec >> tcSpec
 unifySpec = describe "the type-unifier" $ do
 
   it "combines identical types without modification" $
-    property $ within 5000000 $ \(ty :: D.Type) -> unify M.empty ty ty == ty
+    property $ within 5000000 $ \(ty :: C.Type) -> unify M.empty ty ty == ty
 
 tcSpec = describe "the type checker" $ do
 

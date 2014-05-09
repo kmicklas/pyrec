@@ -31,7 +31,8 @@ library
     ,                     Pyrec.Lex
     ,                     Pyrec.Parse
     ,                     Pyrec.Desugar
-    ,                     Pyrec.Check
+    ,                     Pyrec.ScopeCheck
+    ,                     Pyrec.TypeCheck
     ,                     Pyrec.Report
     ,                     Pyrec.Compile
     ,                     Pyrec.Emit

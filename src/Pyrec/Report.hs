@@ -14,6 +14,7 @@ import           Pyrec.Error
 
 import           Pyrec.IR
 import qualified Pyrec.IR.Desugar     as D
+import           Pyrec.IR.Desugar                (Loc, BindN(..))
 import           Pyrec.IR.Check       as C
 import qualified Pyrec.IR.Core        as R
 
@@ -22,14 +23,14 @@ type RP     = Writer Errors
 
 -- | We use this to find errors in dead code too
 data ExprWithErrors i
-  = EE D.Loc D.Type [R.Error] (Pyrec.IR.Expr D.BindT D.BindN i D.Type (ExprWithErrors i))
+  = EE Loc C.Type [R.Error] (Pyrec.IR.Expr BindT BindN i C.Type (ExprWithErrors i))
   deriving (Eq, Show)
 
 report :: C.Expr -> RP R.Expr
 report = trim . convID . rpIdent . rpTypeError . prepare
 
 
-foldExpr :: (ExprWithErrors i -> Pyrec.IR.Expr D.BindT D.BindN i D.Type e -> e)
+foldExpr :: (ExprWithErrors i -> Pyrec.IR.Expr BindT BindN i C.Type e -> e)
               -> ExprWithErrors i -> e
 foldExpr f e@(EE _ _ _ inner) = f e $ foldExpr f <$> inner
 
@@ -53,7 +54,7 @@ err (EE l t errors expr) errors' = EE l t (errors ++ errors') expr
 
 -- | Updates a node with bombs
 merge :: ExprWithErrors ignored
-         -> Pyrec.IR.Expr D.BindT D.BindN i D.Type (ExprWithErrors i)
+         -> Pyrec.IR.Expr BindT BindN i C.Type (ExprWithErrors i)
          -> ExprWithErrors i
 merge (EE l t errors _) inner' = EE l t errors inner'
 
@@ -77,13 +78,13 @@ rpTypeError :: ExprWithErrors C.Id -> ExprWithErrors C.Id
 rpTypeError = foldExpr $ \e@(EE _ t _ _) rest ->
   err (merge e rest) $ fmap (R.TypeError t) $ getTypeErrors t
   where
-    getTypeErrors :: D.Type -> [R.TypeError]
+    getTypeErrors :: C.Type -> [R.TypeError]
     -- | deconstructs the type, accumulating errors
     getTypeErrors t = case t of
-      D.TUnknown          -> err $ R.AmbiguousType
-      D.PartialObj fields -> err $ R.PartialObj fields
-      D.TError     terror -> err $ R.TEEarlier  terror
-      D.T t               -> foldMap getTypeErrors t
+      C.TUnknown          -> err $ R.AmbiguousType
+      C.PartialObj fields -> err $ R.PartialObj fields
+      C.TError     terror -> err $ R.TEEarlier  terror
+      C.T t               -> foldMap getTypeErrors t
       where err a = [a]
 
 rpIdent :: ExprWithErrors C.Id -> ExprWithErrors C.Id

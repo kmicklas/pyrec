@@ -1,6 +1,6 @@
 {-# LANGUAGE StandaloneDeriving #-}
 
-module Pyrec.Check where
+module Pyrec.TypeCheck where
 
 import           Prelude                 hiding (mapM, sequence)
 
@@ -21,7 +21,6 @@ import           Pyrec.IR                hiding (Pattern)
 import qualified Pyrec.IR.Desugar  as D
 import           Pyrec.IR.Desugar               (Loc, BindN(..))
 import           Pyrec.IR.Check    as C
-import qualified Pyrec.IR.Core                  (Id(..))
 
 deriving instance Ord BindN
 

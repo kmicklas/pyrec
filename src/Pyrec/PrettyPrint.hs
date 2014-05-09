@@ -136,13 +136,24 @@ instance PrettyPrint D.Type where
   pp = \case
     D.T t -> pp t
     D.TUnknown -> "?"
-    D.PartialObj fs -> curlyList $ (++ ["..."]) $
+
+instance PrettyPrint C.Type where
+  pp = \case
+    C.T t -> pp t
+    C.TUnknown -> "?"
+    C.PartialObj fs -> curlyList $ (++ ["..."]) $
       for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
 
-instance PrettyPrint D.TypeError where
+instance PrettyPrint C.TypeError where
   pp = \case
-    D.TypeMismatch exp got -> "Expected " ++ pp exp ++ ", got " ++ pp got
-    D.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ pp ty
+    C.TypeMismatch exp got -> "Expected " ++ pp exp ++ ", got " ++ pp got
+    C.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ pp ty
+
+instance PrettyPrint C.Id where
+  pp = \case
+    C.Bound _ _ s -> pp s
+    C.Unbound   s -> pp s
+
 
 instance PrettyPrint R.TypeError where
   pp = \case
