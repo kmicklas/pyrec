@@ -21,7 +21,7 @@ type LName = AST.Name
 type LLVM = RWS () ([Definition], [Named Instruction]) Word
 
 gen :: LLVM LName
-gen = UnName <$> get <* modify (\ n -> n + 1)
+gen = UnName <$> get <* modify (+ 1)
 
 funName :: Fun -> Name
 funName (Fun n _ _ _) = n
