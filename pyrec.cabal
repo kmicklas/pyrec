@@ -34,12 +34,9 @@ library
     ,                     Pyrec.ScopeCheck
     ,                     Pyrec.TypeCheck
     ,                     Pyrec.Report
-    ,                     Pyrec.Compile
-    ,                     Pyrec.Emit
     ,                     Pyrec.LLVM
 
     ,                     Pyrec.CPS
-    ,                     Pyrec.SSA
     ,                     Pyrec.AST
     ,                     Pyrec.IR
     ,                     Pyrec.IR.Check

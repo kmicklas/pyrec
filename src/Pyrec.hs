@@ -31,9 +31,6 @@ import qualified Pyrec.Desugar    as D
 import qualified Pyrec.ScopeCheck as S
 import qualified Pyrec.TypeCheck  as T
 import qualified Pyrec.Report     as R
-import qualified Pyrec.Compile    as O
-import qualified Pyrec.Emit       as E
-
 
 pos = newPos "test" 1 . fromInteger
 
@@ -56,7 +53,7 @@ env = M.union foreignEnv stdEnv
 
 
 compileEmit :: R.Expr -> String
-compileEmit = E.emit . O.compile
+compileEmit = _ . _
 
 checkReport :: T.Env -> D.Expr -> R.RP R.Expr
 checkReport env =  R.report . T.tc env
