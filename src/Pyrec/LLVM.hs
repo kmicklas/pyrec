@@ -73,7 +73,10 @@ llvm = \case
 
 llvmFun :: [Name] -> Fun -> LLVM LName
 llvmFun cvs (Fun n args (rc, ec) e) =
-  do tell $ (,[]) $ return $ GlobalDefinition $
+  do bid <- gen
+     (r, (ds, is)) <- censor (const ([], [])) $ listens id $ llvm e
+     tell (ds, [])
+     tell $ (,[]) $ return $ GlobalDefinition $
        Function Private
                 Hidden
                 C
@@ -85,11 +88,10 @@ llvmFun cvs (Fun n args (rc, ec) e) =
                 Nothing
                 0
                 Nothing
-                [block]
+                [BasicBlock bid is $ Do $ Ret (Just $ LocalReference r) []]
      return n'
   where n'     = lname n
         params = _
-        block  = _
 
 llvmEnv :: [Name] -> LLVM Name
 llvmEnv ns = undefined
