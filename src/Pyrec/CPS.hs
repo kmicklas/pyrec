@@ -6,7 +6,7 @@ import Text.Parsec.Pos
 data Name
   = Name String SourcePos
   | Gen Word
-  deriving (Show, Eq)
+  deriving (Show, Eq, Ord)
 
 data Val
   = Var Name
