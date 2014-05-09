@@ -28,10 +28,10 @@ convBlock (Statements stmts) = case stmts of
   []                             -> return $ D.E undefined (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
   (Node p (LetStmt _let) : rest) -> letCommon IR.Val p _let rest
   (Node p (VarStmt _let) : rest) -> letCommon IR.Var p _let rest
+  [Node p e]                     -> convExpr $ Node p e
   (Node p e              : rest) ->
-    recur $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p)
-                                       Nothing) e)) : rest
-  [Node p e]                     -> convExpr e
+    recur $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p) Nothing)
+                                 (Node p e))) : rest
 
   where recur = convBlock . Statements
 
@@ -90,7 +90,7 @@ convExpr (Node p e) = case e of
 
   Fun tparams params retT body ->
     convExpr $ rebuild $ Fun tparams Nothing Nothing
-    $ Statements $ [rebuild $ rebuild $ Fun Nothing params retT body]
+    $ Statements $ [rebuild $ Fun Nothing params retT body]
 
   App  f args -> fmap mkU $ IR.App  <$> convExpr f <*> sequence (convExpr <$> args)
   AppT f args -> fmap mkU $ IR.AppT <$> convExpr f <*> sequence (convType <$> args)
@@ -99,9 +99,6 @@ convExpr (Node p e) = case e of
   BinOp e  []           -> error "ill-formed binop chain"
   BinOp e1 [(tok,e2)]   -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e1, e2]
   BinOp e1 ((tok,e2):r) -> convExpr $ rebuild $ App (Node p $ Ident $ rebuild $ tok) [e1, rebuild $ BinOp e2 r]
-
---  If _if _thens _else -> convExpr $ rebuild $ Cases (Just $ TIdent "Bool") _if $
---                        [
 
   TypeConstraint expr typ -> D.Constraint p <$> convType typ <*> convExpr expr
 
