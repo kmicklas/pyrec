@@ -35,7 +35,7 @@ block :: Parse Block
 block = Statements <$> many expr
 
 expr :: Parse (Node Expr)
-expr = node (letStmt <|> try varStmt <|> try assignStmt) <|> opExpr
+expr = node (letStmt <|> try varStmt <|> try assignStmt <|> try from) <|> opExpr
 
 letStmt :: Parse Expr
 letStmt = LetStmt <$> let_
@@ -48,6 +48,9 @@ let_ = Let <$> try (idenBind <* (kw "=")) <*> expr
 
 assignStmt :: Parse Expr
 assignStmt = AssignStmt <$> try (iden <* kw ":=") <*> expr
+
+from :: Parse Expr
+from = From <$> try (idenBind <* (kw "from")) <*> expr
 
 typeParams :: Parse [Id]
 typeParams = angleNoSpace *> sepBy iden (kw ",") <* close '>'
@@ -101,6 +104,7 @@ val = node $  Ident <$> iden
           <|> objExpr
           <|> ifExpr
           <|> casesExpr
+          <|> forExpr
 
 funExpr :: Parse Expr
 funExpr = (kw "fun" *>) $
@@ -153,6 +157,9 @@ case_ = (kw "|" *>) $ (pure Else <* kw "else" <* kw "=>" <*> block) <|>
                                  <*> optionMaybe params
                                  <* kw "=>"
                                  <*> block)
+
+forExpr :: Parse Expr
+forExpr = (kw "for" *>) $ For <$> expr <* begin <*> block <* end
 
 begin :: Parse ()
 begin = kw ":"

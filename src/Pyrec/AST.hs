@@ -61,6 +61,7 @@ data Expr
   = LetStmt (Let Id)
   | VarStmt (Let Id)
   | AssignStmt Id (Node Expr)
+  | From (Bind Id) (Node Expr)
   | Graph Block
   | Data Id (Maybe [Id]) [Variant]
 
@@ -80,6 +81,7 @@ data Expr
   | Block Block
   | If [Branch] (Maybe Block)
   | Cases (Maybe (Node Type)) (Node Expr) [Case]
+  | For (Node Expr) Block
 
   | TypeConstraint (Node Expr) (Node Type)
   deriving (Eq, Show, Ord)
