@@ -193,8 +193,8 @@ kw w = tok $ \case Kw s | w == s -> Just ()
                    _             -> Nothing
 
 openSpace :: Bool -> Char -> Parse ()
-openSpace s c = tok $ \case Open [c] s -> Just ()
-                            _          -> Nothing
+openSpace s c = tok $ \case Open [c'] s' | (s, c) == (s', c) -> Just ()
+                            _                                -> Nothing
 
 parenWithSpace = openSpace True  '('
 parenNoSpace   = openSpace False '('
@@ -203,9 +203,9 @@ angleWithSpace = openSpace True  '<'
 angleNoSpace   = openSpace False '<'
 
 open :: Char -> Parse ()
-open c = tok $ \case Open [c] _ -> Just ()
-                     _          -> Nothing
+open c = tok $ \case Open [c'] _ | c == c' -> Just ()
+                     _                     -> Nothing
 
 close :: Char -> Parse ()
-close c = tok $ \case Close [c] -> Just ()
-                      _         -> Nothing
+close c = tok $ \case Close [c'] | c == c' -> Just ()
+                      _                    -> Nothing
