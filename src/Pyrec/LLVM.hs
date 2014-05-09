@@ -2,6 +2,8 @@ module Pyrec.LLVM where
 
 import Data.Set
 import Data.Word
+import Data.Monoid
+import Data.Foldable hiding (toList)
 
 import Control.Monad.RWS
 import Control.Applicative
@@ -21,14 +23,30 @@ type LLVM = RWS () ([Definition], [Named Instruction]) Word
 gen :: LLVM LName
 gen = UnName <$> get <* modify (\ n -> n + 1)
 
-frees :: Set Name -> Expr -> Set Name
-frees = undefined
+funName :: Fun -> Name
+funName (Fun n _ _ _) = n
 
-fixFrees :: [Fun] -> Set Name
-fixFrees = undefined
+frees :: Set Name -> Expr -> Set Name
+frees env = \case
+  App f as (rc, ec) -> foldMap (valFrees env) $ f : rc : ec : as
+  Fix fns e         -> fixFrees env fns `mappend` frees env' e
+    where env' = mappend env $ foldMap (singleton . funName) fns
+
+valFrees :: Set Name -> Val -> Set Name
+valFrees env = \case
+  Var n -> if member n env then mempty else singleton n
+  _     -> mempty
+
+fixFrees :: Set Name -> [Fun] -> Set Name
+fixFrees env fns = foldMap (funFrees env') fns
+  where env' = mappend env $ foldMap (singleton . funName) fns
+
+funFrees :: Set Name -> Fun -> Set Name
+funFrees env (Fun _ as (rc, ec) e) = frees env' e
+  where env' = mappend env $ fromList $ rc : ec : as
 
 instr :: Named Instruction -> LLVM ()
-instr i = undefined
+instr i = tell $ ([],) $ return $ i
 
 lname :: Name -> LName
 lname = \case
@@ -44,7 +62,7 @@ llvm = \case
        return res
     where op (Var n) = LocalReference $ lname n
   Fix fns e ->
-    do let closureVars = toList $ fixFrees fns
+    do let closureVars = toList $ (fixFrees mempty) fns
        fids <- sequence $ llvmFun closureVars <$> fns
        env <- llvmEnv closureVars
        sequence $ llvmClosure env <$>

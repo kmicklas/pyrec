@@ -143,6 +143,7 @@ instance PrettyPrint C.Type where
     C.TUnknown -> "?"
     C.PartialObj fs -> curlyList $ (++ ["..."]) $
       for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
+    C.TError e      -> pp e
 
 instance PrettyPrint C.TypeError where
   pp = \case
