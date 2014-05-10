@@ -231,6 +231,7 @@ checkT :: Env -> C.Type -> C.Type
 checkT env = \case
   t@(C.T (TIdent (Bound Val l i))) -> case M.lookup (BN l i) env of
     Just (Def Val (BT _ _ (C.T TType)) _) -> t
+    Just (Data    _                    _) -> t
     _                                     -> error "unbound, or non-type identifier"
   t@(C.T (TIdent (Unbound _)))     -> t
   C.T (TParam params retT)         ->
