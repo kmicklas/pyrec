@@ -12,6 +12,7 @@ import Pyrec.Misc
 import Pyrec.CPS
 
 import LLVM.General.AST hiding (Name)
+import LLVM.General.AST.AddrSpace
 import LLVM.General.AST.CallingConvention
 import LLVM.General.AST.Linkage
 import LLVM.General.AST.Visibility
@@ -19,8 +20,27 @@ import LLVM.General.AST.Visibility
 import qualified LLVM.General.AST as AST (Name(..))
 
 type LName = AST.Name
+lname      = AST.Name
 
 type LLVM = RWS () ([Definition], [Named Instruction]) Word
+
+llvmModule :: String -> Expr -> Module
+llvmModule name e = Module name Nothing Nothing (main : defs)
+  where (r, _, (defs, block)) = runRWS (llvmExpr e) () 0
+        main = GlobalDefinition
+               $ Function External
+                          Default
+                          C
+                          []
+                          (IntegerType 32)
+                          (lname "pyretMain")
+                          ([], False)
+                          []
+                          Nothing
+                          0
+                          Nothing
+                          [BasicBlock (lname "entry") block
+                           $ Do $ Ret (Just $ LocalReference r) []]
 
 gen :: LLVM LName
 gen = UnName <$> get <* modify (+ 1)
@@ -50,31 +70,30 @@ funFrees env (Fun _ as (rc, ec) e) = frees env' e
 instr :: Named Instruction -> LLVM ()
 instr i = tell $ ([],) $ return $ i
 
-lname :: Name -> LName
-lname = \case
+llvmName :: Name -> LName
+llvmName = \case
   Name n p -> AST.Name $ n ++ "$" ++ show p
   Gen n    -> AST.UnName n
 
-llvm :: Expr -> LLVM LName
-llvm = \case
+llvmExpr :: Expr -> LLVM LName
+llvmExpr = \case
   App f args (rc, ec) ->
     do res <- gen
        instr $ res := Call True Fast [] (Right $ op f)
                            (((,[]) . op) <$> args) [] []
        return res
-    where op (Var n) = LocalReference $ lname n
+    where op (Var n) = LocalReference $ llvmName n
   Fix fns e ->
     do let closureVars = toList $ (fixFrees mempty) fns
        fids <- sequence $ llvmFun closureVars <$> fns
        env <- llvmEnv closureVars
        sequence $ llvmClosure env <$>
          zip fids (funName <$> fns)
-       llvm e
+       llvmExpr e
 
 llvmFun :: [Name] -> Fun -> LLVM LName
 llvmFun cvs (Fun n args (rc, ec) e) =
-  do bid <- gen
-     (r, (ds, is)) <- censor (const ([], [])) $ listens id $ llvm e
+  do (r, (ds, is)) <- censor (const ([], [])) $ listens id $ llvmExpr e
      tell (ds, [])
      tell $ (,[]) $ return $ GlobalDefinition $
        Function Private
@@ -83,14 +102,14 @@ llvmFun cvs (Fun n args (rc, ec) e) =
                 []
                 pVal
                 n'
-                (params, False) 
+                (params, False)
                 []
                 Nothing
                 0
                 Nothing
-                [BasicBlock bid is $ Do $ Ret (Just $ LocalReference r) []]
+                [BasicBlock (lname "entry") is $ Do $ Ret (Just $ LocalReference r) []]
      return n'
-  where n'     = lname n
+  where n'     = llvmName n
         params = _
 
 llvmEnv :: [Name] -> LLVM Name
@@ -100,4 +119,4 @@ llvmClosure :: Name -> (LName, Name) -> LLVM ()
 llvmClosure env (ln, n) = undefined
 
 pVal :: Type
-pVal = _
+pVal = PointerType (IntegerType 8) $ AddrSpace 0
