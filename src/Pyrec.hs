@@ -33,8 +33,6 @@ import qualified Pyrec.ScopeCheck as S
 import qualified Pyrec.TypeCheck  as T
 import qualified Pyrec.Report     as R
 
-pos = newPos "test" 1 . fromInteger
-
 foreignFuns :: T.Env
 foreignFuns = M.fromList $ numBinOp <$> [ "@pyretPlus",  "@pyretMinus"
                                        , "@pyretTimes", "@pyretDivide"]
