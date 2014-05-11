@@ -24,8 +24,8 @@ lname      = AST.Name
 
 type LLVM = RWS () ([Definition], [Named Instruction]) Word
 
-llvmModule :: String -> Expr -> Module
-llvmModule name e = Module name Nothing Nothing (main : defs)
+llvmModule :: Expr -> Module
+llvmModule e = Module "Pyret" Nothing Nothing (main : defs)
   where (r, _, (defs, block)) = runRWS (llvmExpr e) () 0
         main = GlobalDefinition
                $ Function External
