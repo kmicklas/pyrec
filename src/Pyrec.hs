@@ -57,7 +57,7 @@ import qualified Pyrec.Compile        as C
 import qualified Pyrec.LLVM           as L
 
 
-type PyrecMonad a = RWS () [Message R.Error] Word a
+type Compile a = RWS () [Message R.Error] Word a
 
 foreignTypes :: T.Env
 foreignTypes = M.fromList $ numBinOp <$> ["Number", "String"]
@@ -78,7 +78,7 @@ defaultEnv = M.union foreignFuns foreignTypes
 parse :: String -> Either ParseError A.Module
 parse = P.parseString P.program
 
-desugar :: A.Module -> PyrecMonad D.Expr
+desugar :: A.Module -> Compile D.Expr
 desugar = mapRWS f . D.convModule
   where f (a, s, w) = (a, s, R.Earlier <$$> w)
 
@@ -91,12 +91,12 @@ scopeCheck env = S.scE $ trim2 <$> M.mapKeys trim1 env
 typeCheck :: T.Env -> C.Expr -> C.Expr
 typeCheck = T.tc
 
-report :: C.Expr -> PyrecMonad R.Expr
+report :: C.Expr -> Compile R.Expr
 report e = rws $ \_ s -> let
   (a, w) = runWriter $ R.report e
   in (a, s, w)
 
-cps :: R.Expr -> PyrecMonad K.Expr
+cps :: R.Expr -> Compile K.Expr
 cps e = rws $ \_ s -> let
   (a, s') = runState (C.cpsProgram "@pyretReturn" "@pyretExcept" e) s
   in (a, s', mempty)
