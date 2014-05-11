@@ -48,10 +48,10 @@ library
     ,                     Pyrec.Error
     ,                     Pyrec.Misc
 
-  build-depends:          base        >=4 && <5
-    ,                     mtl         >=2
+  build-depends:          base              >=4 && <5
+    ,                     mtl               >=2
     ,                     containers
-    ,                     parsec      >=3
+    ,                     parsec            >=3
     ,                     hashable
     ,                     array
     ,                     llvm-general-pure
@@ -70,10 +70,11 @@ executable pyrec
 
   build-depends:          pyrec
 
-    ,                     base        >=4 && <5
-    ,                     mtl         >=2
+    ,                     base              >=4 && <5
+    ,                     mtl               >=2
     ,                     containers
-    ,                     parsec      >=3
+    ,                     parsec            >=3
+    ,                     llvm-general-pure
 
     ,                     directory
     ,                     filepath
