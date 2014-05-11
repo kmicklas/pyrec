@@ -56,7 +56,7 @@ foreignTypes = M.fromList $ numBinOp <$> ["Number", "String"]
   where numBinOp n = ( D.BN Intrinsic n
                      , Def Val (C.BT Intrinsic n $ C.T $ TType) ())
 
-env = M.union foreignFuns foreignTypes
+defaultEnv = M.union foreignFuns foreignTypes
 
 
 parse :: String -> Either ParseError A.Module
@@ -87,3 +87,11 @@ cps e = rws $ \_ s -> let
 
 llvm :: K.Expr -> LLVM.General.AST.Module
 llvm = L.llvmModule
+
+
+pyrec :: String -> Either ParseError (PyrecMonad Module)
+pyrec = desugarEmit <.> parse
+  where desugarEmit = llvm <.> cps <=< report
+                      . typeCheck defaultEnv
+                      . scopeCheck defaultEnv
+                      <=< desugar
