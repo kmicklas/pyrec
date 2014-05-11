@@ -1,4 +1,21 @@
-module Pyrec where
+module Pyrec
+  ( Message
+  , R.Error
+
+  , foreignTypes
+  , foreignFuns
+  , defaultEnv
+
+  , parse
+  , desugar
+  , scopeCheck
+  , typeCheck
+  , report
+  , cps
+  , llvm
+
+  , compile
+  ) where
 
 import           Prelude              hiding (map, mapM)
 
@@ -42,6 +59,10 @@ import qualified Pyrec.LLVM           as L
 
 type PyrecMonad a = RWS () [Message R.Error] Word a
 
+foreignTypes :: T.Env
+foreignTypes = M.fromList $ numBinOp <$> ["Number", "String"]
+  where numBinOp n = ( D.BN Intrinsic n
+                     , Def Val (C.BT Intrinsic n $ C.T $ TType) ())
 
 foreignFuns :: T.Env
 foreignFuns = M.fromList $ numBinOp <$> [ "@pyretPlus",  "@pyretMinus"
@@ -50,11 +71,6 @@ foreignFuns = M.fromList $ numBinOp <$> [ "@pyretPlus",  "@pyretMinus"
           ( D.BN Intrinsic n
           , Def Val (C.BT Intrinsic n $ C.T $ TFun [ numT, numT] $ numT) ())
         numT = C.T $ TIdent $ C.Bound Val Intrinsic "Number"
-
-foreignTypes :: T.Env
-foreignTypes = M.fromList $ numBinOp <$> ["Number", "String"]
-  where numBinOp n = ( D.BN Intrinsic n
-                     , Def Val (C.BT Intrinsic n $ C.T $ TType) ())
 
 defaultEnv = M.union foreignFuns foreignTypes
 
@@ -82,16 +98,18 @@ report e = rws $ \_ s -> let
 
 cps :: R.Expr -> PyrecMonad K.Expr
 cps e = rws $ \_ s -> let
-  (a, s') = runState (C.cps (_, _) e) s
+  (a, s') = runState (C.cpsProgram "@pyretReturn" "@pyretExcept" e) s
   in (a, s', mempty)
 
 llvm :: K.Expr -> LLVM.General.AST.Module
-llvm = L.llvmModule
+llvm = L.llvmModule "Pyret" "@userMain"
 
 
-pyrec :: String -> Either ParseError (PyrecMonad Module)
-pyrec = desugarEmit <.> parse
+compile :: String -> Either ParseError (Module, [Message R.Error])
+compile = extract <.> desugarEmit <.> parse
   where desugarEmit = llvm <.> cps <=< report
                       . typeCheck defaultEnv
                       . scopeCheck defaultEnv
                       <=< desugar
+        extract m = (mod, warnings)
+          where (mod, _, warnings) = runRWS m () 0

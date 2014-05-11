@@ -18,6 +18,10 @@ type CPS = State Word
 gen :: CPS Name
 gen = (Gen <$> get) <* modify (+ 1)
 
+cpsProgram :: String -> String -> R.Expr -> CPS Expr
+cpsProgram exitName exceptName = cps (n2v exitName, n2v exceptName)
+  where n2v n = Name n Intrinsic
+
 cps :: (Name, Name) -> R.Expr -> CPS Expr
 cps (rc, ec) (R.E _ _ e) = case e of
   IR.Num n -> return $ k $ Num n

@@ -24,8 +24,8 @@ lname      = AST.Name
 
 type LLVM = RWS () ([Definition], [Named Instruction]) Word
 
-llvmModule :: Expr -> Module
-llvmModule e = Module "Pyret" Nothing Nothing (main : defs)
+llvmModule :: String -> String -> Expr -> Module
+llvmModule modName entryName e = Module modName Nothing Nothing (main : defs)
   where (r, _, (defs, block)) = runRWS (llvmExpr e) () 0
         main = GlobalDefinition
                $ Function External
@@ -33,13 +33,13 @@ llvmModule e = Module "Pyret" Nothing Nothing (main : defs)
                           C
                           []
                           (IntegerType 32)
-                          (lname "pyretMain")
+                          (lname entryName)
                           ([], False)
                           []
                           Nothing
                           0
                           Nothing
-                          [BasicBlock (lname "entry") block
+                          [BasicBlock (lname "moduleEntry") block
                            $ Do $ Ret (Just $ LocalReference r) []]
 
 gen :: LLVM LName
