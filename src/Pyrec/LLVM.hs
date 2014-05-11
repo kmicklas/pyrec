@@ -14,6 +14,8 @@ import Pyrec.CPS
 import LLVM.General.AST hiding (Name)
 import LLVM.General.AST.AddrSpace
 import LLVM.General.AST.CallingConvention
+import LLVM.General.AST.Constant
+import LLVM.General.AST.Float
 import LLVM.General.AST.Linkage
 import LLVM.General.AST.Visibility
 
@@ -24,13 +26,16 @@ lname      = AST.Name
 
 type LLVM = RWS () ([Definition], [Named Instruction]) Word
 
+pyrecConvention :: CallingConvention
+pyrecConvention = C
+
 llvmModule :: String -> String -> Expr -> Module
 llvmModule modName entryName e = Module modName Nothing Nothing (main : defs)
   where (r, _, (defs, block)) = runRWS (llvmExpr e) () 0
         main = GlobalDefinition
                $ Function External
                           Default
-                          C
+                          pyrecConvention
                           []
                           (IntegerType 32)
                           (lname entryName)
@@ -75,21 +80,48 @@ llvmName = \case
   Name n p -> AST.Name $ n ++ "$" ++ show p
   Gen n    -> AST.UnName n
 
+call f args = Call True pyrecConvention [] (Right f)
+                        ((,[]) <$> args) [] []
+
+operand :: Val -> LLVM Operand
+operand = \case
+  Var n -> return $ LocalReference $ llvmName n
+  Num n -> do
+    res <- gen
+    let fop = ConstantOperand $ GlobalReference
+              $ lname "@loadPyretNumber"
+    instr $ res := call fop [ConstantOperand $ Float $ Double n]
+    return $ LocalReference res
+  Str r -> do
+    res <- gen
+    let fop = ConstantOperand $ GlobalReference
+              $ lname "@loadPyretString"
+    instr $ res := call fop [_]
+    return $ LocalReference res
+
 llvmExpr :: Expr -> LLVM LName
 llvmExpr = \case
-  App f args (rc, ec) ->
-    do res <- gen
-       instr $ res := Call True Fast [] (Right $ op f)
-                           (((,[]) . op) <$> args) [] []
-       return res
-    where op (Var n) = LocalReference $ llvmName n
-  Fix fns e ->
-    do let closureVars = toList $ (fixFrees mempty) fns
-       fids <- sequence $ llvmFun closureVars <$> fns
-       env <- llvmEnv closureVars
-       sequence $ llvmClosure env <$>
-         zip fids (funName <$> fns)
-       llvmExpr e
+  App f args (rc, ec) -> do
+    res  <- gen
+    fop  <- operand f
+    aops <- mapM operand (rc : ec : args)
+    instr $ res := call fop aops
+    return res
+
+  Cont k a -> do
+    res <- gen
+    kop <- operand k
+    aop <- operand a
+    instr $ res := call kop [aop]
+    return res
+
+  Fix fns e -> do
+    let closureVars = toList $ (fixFrees mempty) fns
+    fids <- sequence $ llvmFun closureVars <$> fns
+    env <- llvmEnv closureVars
+    sequence $ llvmClosure env <$>
+      zip fids (funName <$> fns)
+    llvmExpr e
 
 llvmFun :: [Name] -> Fun -> LLVM LName
 llvmFun cvs (Fun n args (rc, ec) e) =
@@ -98,7 +130,7 @@ llvmFun cvs (Fun n args (rc, ec) e) =
      tell $ (,[]) $ return $ GlobalDefinition $
        Function Private
                 Hidden
-                C
+                pyrecConvention
                 []
                 pVal
                 n'
