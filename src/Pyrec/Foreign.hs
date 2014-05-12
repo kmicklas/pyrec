@@ -54,8 +54,9 @@ runtimeDecls = arith ++ rts
                 : (function "pyrecLoadString" [pyrecArg "string"] pVal)
                 : (rtsFun <$> ("pyrec"++) <$> ["Return", "Except"])
 
-        rtsFun name = function name [pyrecArg "val"]             VoidType
-        binOp  name = function name [pyrecArg "a", pyrecArg "b"] pVal
+        rtsFun name = function name [pyrecArg "val"]               VoidType
+        binOp  name = function name [ pyrecArg "rk", pyrecArg "ek"
+                                    , pyrecArg "a",  pyrecArg "b"] VoidType
         pyrecArg name = Parameter pVal (lname name) []
         function name args return = GlobalDefinition
                                     $ Function External

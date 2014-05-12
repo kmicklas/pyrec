@@ -32,13 +32,13 @@ pyrecConvention = C
 llvmModule :: String -> String -> [Definition] -> Expr -> Module
 llvmModule modName entryName decls e =
   Module modName Nothing Nothing (decls ++ (main : defs))
-  where (r, _, (defs, block)) = runRWS (llvmExpr e) () 0
+  where (_, _, (defs, block)) = runRWS (llvmExpr e) () 0
         main = GlobalDefinition
                $ Function External
                           Default
                           pyrecConvention
                           []
-                          (IntegerType 32)
+                          VoidType
                           (lname entryName)
                           ([], False)
                           []
@@ -46,7 +46,7 @@ llvmModule modName entryName decls e =
                           0
                           Nothing
                           [BasicBlock (lname "moduleEntry") block
-                           $ Do $ Ret (Just $ LocalReference r) []]
+                           $ Do $ Unreachable []]
 
 gen :: LLVM LName
 gen = UnName <$> get <* modify (+ 1)
@@ -85,7 +85,8 @@ localName n w = lname $ n ++ "$" ++ show w
 operand :: Val -> LLVM Operand
 operand = \case
   Var n -> return $ case n of
-    (Name n Intrinsic)  -> ConstantOperand $ GlobalReference $ lname $ "pyrec" ++ n
+    (Name n Intrinsic)  -> ConstantOperand $ GlobalReference
+                           $ lname $ "pyrec" ++ n
     (Name n (User _ w)) -> LocalReference  $ localName n w
   Num n -> do
     res <- gen
@@ -125,22 +126,22 @@ llvmExpr = \case
     llvmExpr e
 
 llvmFun :: [Name] -> Fun -> LLVM LName
-llvmFun cvs (Fun n args (rc, ec) e) =
-  do (r, (ds, is)) <- censor (const ([], [])) $ listens id $ llvmExpr e
+llvmFun cvs (Fun n args (rk, ek) e) =
+  do (_, (ds, is)) <- censor (const ([], [])) $ listens id $ llvmExpr e
      tell (ds, [])
      tell $ (,[]) $ return $ GlobalDefinition $
        Function Private
                 Hidden
                 pyrecConvention
                 []
-                pVal
+                VoidType
                 n''
                 (params, False)
                 []
                 Nothing
                 0
                 Nothing
-                [BasicBlock (lname "entry") is $ Do $ Ret (Just $ LocalReference r) []]
+                [BasicBlock (lname "entry") is $ Do $ Unreachable  []]
      return n''
   where (Name n' (User _ w)) = n
         n''                  = localName n' w

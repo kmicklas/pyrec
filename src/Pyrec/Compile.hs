@@ -23,18 +23,19 @@ cpsProgram exitName exceptName = cps (n2v exitName, n2v exceptName)
   where n2v n = Name n Intrinsic
 
 cps :: (Name, Name) -> R.Expr -> CPS Expr
-cps (rc, ec) (R.E _ _ e) = case e of
+cps (_,  _)  (R.Error e) = error $ show e
+cps (rk, ek) (R.E _ _ e) = case e of
   IR.Num n -> return $ k $ Num n
   IR.Str s -> return $ k $ Str s
 
   IR.Ident (R.Bound l n) -> return $ k $ Var $ Name n l
 
-  IR.Fun args b -> do rc' <- gen
-                      ec' <- gen
+  IR.Fun args b -> do rk' <- gen
+                      ek' <- gen
                       f  <- gen
-                      b' <- cps (rc', ec') b
-                      return $ Fix [Fun f argNames (rc', ec') b'] $ k $ Var f
+                      b' <- cps (rk', ek') b
+                      return $ Fix [Fun f argNames (rk', ek') b'] $ k $ Var f
     where argNames = for args $ \ (C.BT l n _) -> Name n l
 
   where k :: Val -> Expr
-        k = Cont (Var rc)
+        k = Cont (Var rk)
