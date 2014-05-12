@@ -90,11 +90,11 @@ llvm :: K.Expr -> LLVM.General.AST.Module
 llvm = L.llvmModule "Pyret" "userMain" runtimeDecls
 
 
-compile :: String -> Either ParseError (Module, [Message R.Error])
+compile :: String -> Either ParseError ([Message R.Error], Module)
 compile = extract <.> desugarEmit <.> parse
   where desugarEmit = llvm <.> cps <=< report
                       . typeCheck defaultEnv
                       . scopeCheck defaultEnv
                       <=< desugar
-        extract m = (mod, warnings)
+        extract m = (warnings, mod)
           where (mod, _, warnings) = runRWS m () 0

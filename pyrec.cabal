@@ -79,6 +79,7 @@ executable pyrec
 
     ,                     directory
     ,                     filepath
+    ,                     bytestring
     ,                     llvm-general
 
 test-suite spec

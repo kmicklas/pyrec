@@ -4,57 +4,70 @@ import           Control.Applicative
 import           Control.Monad.RWS
 import           Control.Monad.Error
 
+import qualified Data.ByteString          as BS
 
-import qualified System.IO         as IO
-import qualified System.Exit       as Exit
+import qualified System.IO                as IO
+import qualified System.Exit              as Exit
 
-import           LLVM.General.AST
+import           LLVM.General.AST         as AST
 import           LLVM.General.PrettyPrint
 
 import           LLVM.General.Context
-import           LLVM.General.Module
+import           LLVM.General.Module      as Mod
+import           LLVM.General.Target
 
-import           Text.Parsec.Error hiding (Message)
+import           Text.Parsec.Error        hiding (Message)
 
 import           Pyrec
 import           Pyrec.PrettyPrint
+import           Pyrec.Report             as R
 
-import           Pyrec.Report      as R
+import           PyrecDriver.Error
 
-displayError :: ErrorT String IO () -> IO ()
-displayError = runErrorT >=> \case
-  Left errors -> do
-    IO.hPutStrLn IO.stderr errors
-    Exit.exitFailure
-  Right _     -> Exit.exitSuccess
 
-showErrors :: Show e => Either e a -> Either String a
-showErrors = \case
-  Right a -> Right a
-  Left  e -> Left $ show e
+compile' :: String
+         -> DriverError ([Message Pyrec.Error], AST.Module)
+compile' = mapErrorT (fmap showE) . ErrorT . return . compile
+ where showE = \case Right a -> Right a
+                     Left  e -> Left $ show e
 
-liftHigher :: Control.Monad.Error.Error e
-               => ((a -> IO (Either e c)) -> IO (Either e c))
-               -> (a -> ErrorT e IO c)
-               -> ErrorT e IO c
-liftHigher with f = ErrorT $ with $ runErrorT . f
+-- helpers, with IO continuation k
 
-liftHigherJoin :: Control.Monad.Error.Error e
-               => ((a -> IO (Either e c)) -> ErrorT e IO (Either e c))
-               -> (a -> ErrorT e IO c)
-               -> ErrorT e IO c
-liftHigherJoin with f = ErrorT $ fmap join $ runErrorT $ with $ runErrorT . f
-
-main :: IO ()
-main = displayError $ do
-  (user, warnings) <- mapErrorT (fmap showErrors)
-                      $ ErrorT $ compile <$> getContents
-
+compileDumpWarnings  :: (AST.Module -> DriverError r) -> DriverError r
+compileDumpWarnings k = do
+  (warnings, user) <- compile' =<< lift IO.getContents
   lift $ forM_ warnings $ IO.hPutStrLn IO.stderr . pp
 
+  k user
+
+getModule :: (Context -> Mod.Module -> DriverError r) -> DriverError r
+getModule k = compileDumpWarnings $ \user -> do
   liftHigher withContext $ \context -> do
-    liftHigherJoin (withModuleFromAST context user) $ \user -> do
---      liftHigherJoin (withModuleFromAST context rumtime) $ \runtime -> do
---      linkModules False user runtime -- mutates user :/
-      progString <- lift $ moduleLLVMAssembly user
-      lift $ IO.hPutStr IO.stdout $ progString
+    liftHigherJoin (withModuleFromAST context user) $ k context
+
+link :: (Context -> Mod.Module -> ErrorT String IO r) -> DriverError r
+link k = getModule $ \context user -> do
+  let with = withModuleFromBitcode context $ File "runtime.bc"
+  liftHigherJoin with $ \runtime -> do
+    linkModules False user runtime -- mutates user :/
+    k context user
+
+-- commands
+
+dumpWarnings, dumpLLVM_AST, dumpObjectFile :: DriverError ()
+
+dumpWarnings = compileDumpWarnings $ const $ mzero
+
+dumpLLVM_AST = getModule $ \_ user -> do
+  progString <- lift $ moduleLLVMAssembly user
+  lift $ IO.hPutStr IO.stdout $ progString
+
+dumpObjectFile = link $ \context linked -> do
+  liftHigherJoin withDefaultTargetMachine $ \machine -> do
+    object <- moduleObject machine linked
+    lift $ BS.hPutStr IO.stdout $ object
+
+-- main
+
+main :: IO ()
+main = topCatchError $ dumpObjectFile
