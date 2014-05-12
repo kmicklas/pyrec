@@ -27,6 +27,7 @@ library
     ,                     TupleSections
 
   exposed-modules:        Pyrec
+    ,                     Pyrec.Foreign
 
     ,                     Pyrec.Lex
     ,                     Pyrec.Parse

@@ -2,8 +2,8 @@ module Pyrec
   ( Message
   , R.Error
 
-  , foreignTypes
-  , foreignFuns
+  , types
+  , funs
   , defaultEnv
 
   , parse
@@ -48,6 +48,8 @@ import qualified Pyrec.IR.Desugar     as D
 import qualified Pyrec.IR.Check       as C
 import qualified Pyrec.IR.Core        as R
 
+import           Pyrec.Foreign        as F
+
 import qualified Pyrec.Parse          as P
 import qualified Pyrec.Desugar        as D
 import qualified Pyrec.ScopeCheck     as S
@@ -58,21 +60,6 @@ import qualified Pyrec.LLVM           as L
 
 
 type Compile a = RWS () [Message R.Error] Word a
-
-foreignTypes :: T.Env
-foreignTypes = M.fromList $ numBinOp <$> ["Number", "String"]
-  where numBinOp n = ( D.BN Intrinsic n
-                     , Def Val (C.BT Intrinsic n $ C.T $ TType) ())
-
-foreignFuns :: T.Env
-foreignFuns = M.fromList $ numBinOp <$> [ "@pyretPlus",  "@pyretMinus"
-                                        , "@pyretTimes", "@pyretDivide"]
-  where numBinOp n =
-          ( D.BN Intrinsic n
-          , Def Val (C.BT Intrinsic n $ C.T $ TFun [ numT, numT] $ numT) ())
-        numT = C.T $ TIdent $ C.Bound Val Intrinsic "Number"
-
-defaultEnv = M.union foreignFuns foreignTypes
 
 
 parse :: String -> Either ParseError A.Module
