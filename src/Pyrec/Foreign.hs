@@ -33,7 +33,7 @@ types = M.fromList $ numBinOp <$> ["Number", "String"]
   where numBinOp n = ( D.BN Intrinsic n
                      , Def Val (C.BT Intrinsic n $ C.T $ TType) ())
 
-fnames = ("@pyrec"++) <$> [ "Plus", "Minus", "Times", "Divide"]
+fnames = ("pyrec"++) <$> [ "Plus", "Minus", "Times", "Divide"]
 
 funs :: T.Env
 funs = M.fromList $ numBinOp <$> fnames
@@ -48,11 +48,11 @@ runtimeDecls :: [Definition]
 runtimeDecls = arith ++ rts
 
   where arith = binOp  <$> fnames
-        rts   = (function "@pyrecLoadNumber"
+        rts   = (function "pyrecLoadNumber"
                     [Parameter (FloatingPointType 64 IEEE) (lname "num") []]
                     pVal)
-                : (function "@pyrecLoadString" [pyrecArg "string"] pVal)
-                : (rtsFun <$> ("@pyrec"++) <$> ["Return", "Except"])
+                : (function "pyrecLoadString" [pyrecArg "string"] pVal)
+                : (rtsFun <$> ("pyrec"++) <$> ["Return", "Except"])
 
         rtsFun name = function name [pyrecArg "val"]             VoidType
         binOp  name = function name [pyrecArg "a", pyrecArg "b"] pVal

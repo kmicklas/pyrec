@@ -90,13 +90,13 @@ operand = \case
   Num n -> do
     res <- gen
     let fop = ConstantOperand $ GlobalReference
-              $ lname "@pyrecLoadNumber"
+              $ lname "pyrecLoadNumber"
     instr $ res := call fop [ConstantOperand $ Float $ Double n]
     return $ LocalReference res
   Str r -> do
     res <- gen
     let fop = ConstantOperand $ GlobalReference
-              $ lname "@pyrecLoadString"
+              $ lname "pyrecLoadString"
     instr $ res := call fop [_]
     return $ LocalReference res
 

@@ -83,11 +83,11 @@ report e = rws $ \_ s -> let
 
 cps :: R.Expr -> Compile K.Expr
 cps e = rws $ \_ s -> let
-  (a, s') = runState (C.cpsProgram "@pyrecReturn" "@pyrecExcept" e) s
+  (a, s') = runState (C.cpsProgram "pyrecReturn" "pyrecExcept" e) s
   in (a, s', mempty)
 
 llvm :: K.Expr -> LLVM.General.AST.Module
-llvm = L.llvmModule "Pyret" "@userMain" runtimeDecls
+llvm = L.llvmModule "Pyret" "userMain" runtimeDecls
 
 
 compile :: String -> Either ParseError (Module, [Message R.Error])
