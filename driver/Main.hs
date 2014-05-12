@@ -33,6 +33,18 @@ showErrors = \case
   Right a -> Right a
   Left  e -> Left $ show e
 
+liftHigher :: Control.Monad.Error.Error e
+               => ((a -> IO (Either e c)) -> IO (Either e c))
+               -> (a -> ErrorT e IO c)
+               -> ErrorT e IO c
+liftHigher with f = ErrorT $ with $ runErrorT . f
+
+liftHigherJoin :: Control.Monad.Error.Error e
+               => ((a -> IO (Either e c)) -> ErrorT e IO (Either e c))
+               -> (a -> ErrorT e IO c)
+               -> ErrorT e IO c
+liftHigherJoin with f = ErrorT $ fmap join $ runErrorT $ with $ runErrorT . f
+
 main :: IO ()
 main = displayError $ do
   (llvmAST, warnings) <- mapErrorT (fmap showErrors)
@@ -40,7 +52,7 @@ main = displayError $ do
 
   lift $ forM_ warnings $ IO.hPutStrLn IO.stderr . pp
 
-  ErrorT $ withContext $ \context -> runErrorT $ do
-    progString <- withModuleFromAST context llvmAST moduleLLVMAssembly
-    lift $ IO.hPutStr IO.stdout $ progString
-    return ()
+  liftHigher withContext $ \context -> do
+    liftHigherJoin (withModuleFromAST context llvmAST) $ \mod -> do
+      progString <- lift $ moduleLLVMAssembly mod
+      lift $ IO.hPutStr IO.stdout $ progString
