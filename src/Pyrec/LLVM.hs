@@ -29,8 +29,9 @@ type LLVM = RWS () ([Definition], [Named Instruction]) Word
 pyrecConvention :: CallingConvention
 pyrecConvention = C
 
-llvmModule :: String -> String -> Expr -> Module
-llvmModule modName entryName e = Module modName Nothing Nothing (main : defs)
+llvmModule :: String -> String -> [Definition] -> Expr -> Module
+llvmModule modName entryName decls e =
+  Module modName Nothing Nothing (decls ++ (main : defs))
   where (r, _, (defs, block)) = runRWS (llvmExpr e) () 0
         main = GlobalDefinition
                $ Function External
@@ -75,27 +76,27 @@ funFrees env (Fun _ as (rc, ec) e) = frees env' e
 instr :: Named Instruction -> LLVM ()
 instr i = tell $ ([],) $ return $ i
 
-llvmName :: Name -> LName
-llvmName = \case
-  Name n p -> AST.Name $ n ++ "$" ++ show p
-  Gen n    -> AST.UnName n
-
 call f args = Call True pyrecConvention [] (Right f)
                         ((,[]) <$> args) [] []
 
+localName :: String -> Word -> LName
+localName n w = lname $ n ++ "$" ++ show w
+
 operand :: Val -> LLVM Operand
 operand = \case
-  Var n -> return $ LocalReference $ llvmName n
+  Var n -> return $ case n of
+    (Name n Intrinsic)  -> ConstantOperand $ GlobalReference $ lname n
+    (Name n (User _ w)) -> LocalReference  $ localName n w
   Num n -> do
     res <- gen
     let fop = ConstantOperand $ GlobalReference
-              $ lname "@loadPyretNumber"
+              $ lname "@pyrecLoadNumber"
     instr $ res := call fop [ConstantOperand $ Float $ Double n]
     return $ LocalReference res
   Str r -> do
     res <- gen
     let fop = ConstantOperand $ GlobalReference
-              $ lname "@loadPyretString"
+              $ lname "@pyrecLoadString"
     instr $ res := call fop [_]
     return $ LocalReference res
 
@@ -133,16 +134,17 @@ llvmFun cvs (Fun n args (rc, ec) e) =
                 pyrecConvention
                 []
                 pVal
-                n'
+                n''
                 (params, False)
                 []
                 Nothing
                 0
                 Nothing
                 [BasicBlock (lname "entry") is $ Do $ Ret (Just $ LocalReference r) []]
-     return n'
-  where n'     = llvmName n
-        params = _
+     return n''
+  where (Name n' (User _ w)) = n
+        n''                  = localName n' w
+        params               = _
 
 llvmEnv :: [Name] -> LLVM Name
 llvmEnv ns = undefined

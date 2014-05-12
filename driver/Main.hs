@@ -47,12 +47,14 @@ liftHigherJoin with f = ErrorT $ fmap join $ runErrorT $ with $ runErrorT . f
 
 main :: IO ()
 main = displayError $ do
-  (llvmAST, warnings) <- mapErrorT (fmap showErrors)
-                         $ ErrorT $ compile <$> getContents
+  (user, warnings) <- mapErrorT (fmap showErrors)
+                      $ ErrorT $ compile <$> getContents
 
   lift $ forM_ warnings $ IO.hPutStrLn IO.stderr . pp
 
   liftHigher withContext $ \context -> do
-    liftHigherJoin (withModuleFromAST context llvmAST) $ \mod -> do
-      progString <- lift $ moduleLLVMAssembly mod
+    liftHigherJoin (withModuleFromAST context user) $ \user -> do
+--      liftHigherJoin (withModuleFromAST context rumtime) $ \runtime -> do
+--      linkModules False user runtime -- mutates user :/
+      progString <- lift $ moduleLLVMAssembly user
       lift $ IO.hPutStr IO.stdout $ progString

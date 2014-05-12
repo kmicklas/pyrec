@@ -2,9 +2,7 @@ module Pyrec
   ( Message
   , R.Error
 
-  , types
-  , funs
-  , defaultEnv
+  , module Pyrec.Foreign
 
   , parse
   , desugar
@@ -48,7 +46,7 @@ import qualified Pyrec.IR.Desugar     as D
 import qualified Pyrec.IR.Check       as C
 import qualified Pyrec.IR.Core        as R
 
-import           Pyrec.Foreign        as F
+import           Pyrec.Foreign
 
 import qualified Pyrec.Parse          as P
 import qualified Pyrec.Desugar        as D
@@ -85,11 +83,11 @@ report e = rws $ \_ s -> let
 
 cps :: R.Expr -> Compile K.Expr
 cps e = rws $ \_ s -> let
-  (a, s') = runState (C.cpsProgram "@pyretReturn" "@pyretExcept" e) s
+  (a, s') = runState (C.cpsProgram "@pyrecReturn" "@pyrecExcept" e) s
   in (a, s', mempty)
 
 llvm :: K.Expr -> LLVM.General.AST.Module
-llvm = L.llvmModule "Pyret" "@userMain"
+llvm = L.llvmModule "Pyret" "@userMain" runtimeDecls
 
 
 compile :: String -> Either ParseError (Module, [Message R.Error])
