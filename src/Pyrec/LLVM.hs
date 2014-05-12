@@ -85,7 +85,7 @@ localName n w = lname $ n ++ "$" ++ show w
 operand :: Val -> LLVM Operand
 operand = \case
   Var n -> return $ case n of
-    (Name n Intrinsic)  -> ConstantOperand $ GlobalReference $ lname n
+    (Name n Intrinsic)  -> ConstantOperand $ GlobalReference $ lname $ "pyrec" ++ n
     (Name n (User _ w)) -> LocalReference  $ localName n w
   Num n -> do
     res <- gen
