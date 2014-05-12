@@ -2,12 +2,17 @@ module Main where
 
 import           Control.Applicative
 import           Control.Monad.RWS
+import           Control.Monad.Error
+
 
 import qualified System.IO         as IO
 import qualified System.Exit       as Exit
 
 import           LLVM.General.AST
 import           LLVM.General.PrettyPrint
+
+import           LLVM.General.Context
+import           LLVM.General.Module
 
 import           Text.Parsec.Error hiding (Message)
 
@@ -16,16 +21,26 @@ import           Pyrec.PrettyPrint
 
 import           Pyrec.Report      as R
 
+displayError :: ErrorT String IO () -> IO ()
+displayError = runErrorT >=> \case
+  Left errors -> do
+    IO.hPutStrLn IO.stderr errors
+    Exit.exitFailure
+  Right _     -> Exit.exitSuccess
+
+showErrors :: Show e => Either e a -> Either String a
+showErrors = \case
+  Right a -> Right a
+  Left  e -> Left $ show e
+
 main :: IO ()
-main = prettyPrint True =<< compile <$> getContents
+main = displayError $ do
+  (llvmAST, warnings) <- mapErrorT (fmap showErrors)
+                         $ ErrorT $ compile <$> getContents
 
-prettyPrint :: Bool -> Either ParseError (Module, [Message Error]) -> IO ()
-prettyPrint exit either = case either of
-  (Left  err)          -> do
-    IO.hPutStrLn IO.stderr $ show err
-    when exit Exit.exitFailure
+  lift $ forM_ warnings $ IO.hPutStrLn IO.stderr . pp
 
-  (Right (llvm, errs)) -> do
-    forM_ errs $ IO.hPutStrLn IO.stderr . pp
-    IO.hPutStr IO.stdout $ showPretty llvm
-    when exit Exit.exitSuccess
+  ErrorT $ withContext $ \context -> runErrorT $ do
+    progString <- withModuleFromAST context llvmAST moduleLLVMAssembly
+    lift $ IO.hPutStr IO.stdout $ progString
+    return ()

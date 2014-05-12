@@ -78,6 +78,7 @@ executable pyrec
 
     ,                     directory
     ,                     filepath
+    ,                     llvm-general
 
 test-suite spec
   type:                   exitcode-stdio-1.0
