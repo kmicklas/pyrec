@@ -5,14 +5,10 @@ AS = llvm-as
 #AFLAGS =
 
 LD = llvm-link
-
 LDFLAGS = -lgmp
 
 %.bc: %.arr pyrec
 	./pyrec bitcode < $< > $@
-
-%.bc: runtime/%.c
-	$(CC) $(CFLAGS) -o $@ $<
 
 %-linked.bc: runtime.bc %.bc
 	$(LD) -o $@ $^
