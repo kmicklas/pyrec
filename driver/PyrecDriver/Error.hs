@@ -1,6 +1,5 @@
 module PyrecDriver.Error where
 
-import           Control.Applicative
 import           Control.Monad.Error
 
 import qualified System.IO         as IO

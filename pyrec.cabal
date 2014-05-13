@@ -79,8 +79,11 @@ executable pyrec
 
     ,                     directory
     ,                     filepath
+
     ,                     bytestring
     ,                     llvm-general
+
+    ,                     cmdlib
 
 test-suite spec
   type:                   exitcode-stdio-1.0

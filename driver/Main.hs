@@ -1,73 +1,33 @@
-module Main where
+{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+module Main
+  ( main
+  ) where
 
-import           Control.Applicative
-import           Control.Monad.RWS
-import           Control.Monad.Error
-
-import qualified Data.ByteString          as BS
-
-import qualified System.IO                as IO
-import qualified System.Exit              as Exit
-
-import           LLVM.General.AST         as AST
-import           LLVM.General.PrettyPrint
-
-import           LLVM.General.Context
-import           LLVM.General.Module      as Mod
-import           LLVM.General.Target
-
-import           Text.Parsec.Error        hiding (Message)
-
-import           Pyrec
-import           Pyrec.PrettyPrint
-import           Pyrec.Report             as R
+import           System.Console.CmdLib
 
 import           PyrecDriver.Error
-
-
-compile' :: String
-         -> DriverError ([Message Pyrec.Error], AST.Module)
-compile' = mapErrorT (fmap showE) . ErrorT . return . compile
- where showE = \case Right a -> Right a
-                     Left  e -> Left $ show e
-
--- helpers, with IO continuation k
-
-compileDumpWarnings  :: (AST.Module -> DriverError r) -> DriverError r
-compileDumpWarnings k = do
-  (warnings, user) <- compile' =<< lift IO.getContents
-  lift $ forM_ warnings $ IO.hPutStrLn IO.stderr . pp
-
-  k user
-
-getModule :: (Context -> Mod.Module -> DriverError r) -> DriverError r
-getModule k = compileDumpWarnings $ \user -> do
-  liftHigher withContext $ \context -> do
-    liftHigherJoin (withModuleFromAST context user) $ k context
-
-link :: (Context -> Mod.Module -> ErrorT String IO r) -> DriverError r
-link k = getModule $ \context user -> do
-  let with = withModuleFromBitcode context $ File "runtime.bc"
-  liftHigherJoin with $ \runtime -> do
-    linkModules False user runtime -- mutates user :/
-    k context user
-
--- commands
-
-dumpWarnings, dumpLLVM_AST, dumpObjectFile :: DriverError ()
-
-dumpWarnings = compileDumpWarnings $ const $ mzero
-
-dumpLLVM_AST = getModule $ \_ user -> do
-  progString <- lift $ moduleLLVMAssembly user
-  lift $ IO.hPutStr IO.stdout $ progString
-
-dumpObjectFile = link $ \context linked -> do
-  liftHigherJoin withDefaultTargetMachine $ \machine -> do
-    object <- moduleObject machine linked
-    lift $ BS.hPutStr IO.stdout $ object
-
--- main
+import           PyrecDriver.Commands
 
 main :: IO ()
-main = topCatchError $ dumpObjectFile
+main = do args <-getArgs
+          (flip run' args :: Arguments -> IO ()) =<< dispatchR [] args
+
+data Arguments
+  = Lint
+  | LlvmAst
+  | ObjectFile
+  deriving (Typeable, Data, Eq)
+
+instance Attributes Arguments where
+  attributes _ = noAttributes
+
+instance RecordCommand Arguments where
+  mode_summary = \case
+    Lint       -> "print warnings and discard IR"
+    LlvmAst    -> "print out the LLVM AST"
+    ObjectFile -> "dump (to stdout) a object file for linking"
+
+  run' cmd _ = topCatchError $ case cmd of
+    Lint       -> dumpWarnings
+    LlvmAst    -> dumpLLVM_AST
+    ObjectFile -> dumpObjectFile
