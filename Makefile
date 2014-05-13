@@ -1,12 +1,10 @@
 CC = clang
-CFLAGS = -c -emit-llvm
 
 AS = llvm-as
-#AFLAGS =
 
 LD = llvm-link
 
-LDFLAGS = -lgmp
+LDFLAGS = -lgmp -ggdb
 
 %-user.o: %.arr pyrec
 	./pyrec object-file < $< > $@
