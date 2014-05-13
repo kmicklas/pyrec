@@ -8,14 +8,11 @@ LD = llvm-link
 
 LDFLAGS = -lgmp
 
-%.ll: %.arr pyrec
-	./pyrec < $< > $@
+%.bc: %.arr pyrec
+	./pyrec bitcode < $< > $@
 
 %.bc: runtime/%.c
 	$(CC) $(CFLAGS) -o $@ $<
-
-%.bc: %.ll
-	$(AS) $(AFLAGS) -o $@ $<
 
 %-linked.bc: runtime.bc %.bc
 	$(LD) -o $@ $^
@@ -27,6 +24,6 @@ pyrec:
 	cabal install --bindir=.
 
 clean:
-	rm -f pyrec *.lbc *.bc *.ll program
+	rm -f pyrec *.lbc *.bc *.ll
 
 .PHONY: clean

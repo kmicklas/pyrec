@@ -10,7 +10,6 @@ import           LLVM.General.AST         as AST
 
 import           LLVM.General.Context
 import           LLVM.General.Module      as Mod
-import           LLVM.General.Target
 
 import           Pyrec
 import           Pyrec.PrettyPrint
@@ -47,7 +46,7 @@ link k = getModule $ \context user -> do
 
 -- commands
 
-dumpWarnings, dumpLLVM_AST, dumpObjectFile :: DriverError ()
+dumpWarnings, dumpLLVM_AST, dumpBitcode :: DriverError ()
 
 dumpWarnings = compileDumpWarnings $ const $ mzero
 
@@ -55,7 +54,6 @@ dumpLLVM_AST = getModule $ \_ user -> do
   progString <- lift $ moduleLLVMAssembly user
   lift $ IO.hPutStr IO.stdout $ progString
 
-dumpObjectFile = link $ \_ linked -> do
-  liftHigherJoin withDefaultTargetMachine $ \machine -> do
-    object <- moduleObject machine linked
-    lift $ BS.hPutStr IO.stdout $ object
+dumpBitcode = getModule $ \_ user -> lift $ do
+  bitcode <- moduleBitcode user
+  BS.hPutStr IO.stdout $ bitcode
