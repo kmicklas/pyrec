@@ -12,38 +12,43 @@ pNumber *newPyretNumber() {
 	return ret;
 }
 
-pNumber *loadPyretNumber(double *n) {
+pNumber *pyrecLoadNumber(double n) {
 	pNumber *ret = newPyretNumber();
-	mpf_set_d(ret->num, *n);
+	mpf_set_d(ret->num, n);
 	return ret;
 }
 
-pNumber *pyretPlus(pNumber *a, pNumber *b) {
+pNumber *pyrecPlus(pNumber *a, pNumber *b) {
 	pNumber *ret = newPyretNumber();
 	mpf_add(ret->num, a->num, b->num);
 	return ret;
 }
 
-pNumber *pyretMinus(pNumber *a, pNumber *b) {
+pNumber *pyrecMinus(pNumber *a, pNumber *b) {
 	pNumber *ret = newPyretNumber();
 	mpf_sub(ret->num, a->num, b->num);
 	return ret;
 }
 
-pNumber *pyretTimes(pNumber *a, pNumber *b) {
+pNumber *pyrecTimes(pNumber *a, pNumber *b) {
 	pNumber *ret = newPyretNumber();
 	mpf_mul(ret->num, a->num, b->num);
 	return ret;
 }
 
-pNumber *pyretDivide(pNumber *a, pNumber *b) {
+pNumber *pyrecDivide(pNumber *a, pNumber *b) {
 	pNumber *ret = newPyretNumber();
 	mpf_div(ret->num, a->num, b->num);
 	return ret;
 }
 
-pNumber *pyret_main();
+void pyrecReturn(pNumber *v) {
+	gmp_printf("%Ff\n", v->num);
+	exit(0);
+}
+
+void userMain();
 
 int main() {
-	gmp_printf("%Ff\n", pyret_main()->num);
+	userMain();
 }
