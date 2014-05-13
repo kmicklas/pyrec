@@ -55,7 +55,7 @@ dumpLLVM_AST = getModule $ \_ user -> do
   progString <- lift $ moduleLLVMAssembly user
   lift $ IO.hPutStr IO.stdout $ progString
 
-dumpObjectFile = link $ \_ linked -> do
+dumpObjectFile = getModule $ \_ linked -> do
   liftHigherJoin withDefaultTargetMachine $ \machine -> do
     object <- moduleObject machine linked
     lift $ BS.hPutStr IO.stdout $ object
