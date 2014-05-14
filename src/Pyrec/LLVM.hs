@@ -1,6 +1,6 @@
 module Pyrec.LLVM where
 
-import           Prelude                  hiding (map, mapM, mapM_, forM, forM_)
+import           Prelude                  hiding (map, mapM, mapM_, forM_, forM, sequence)
 
 import           Control.Applicative
 import           Control.Monad.RWS        hiding (mapM, mapM_, forM_, forM, sequence)
@@ -9,14 +9,14 @@ import           Data.Set                 as S
 import           Data.Monoid
 import           Data.Word
 import           Data.Foldable            hiding (toList)
-import           Data.Traversable         hiding (sequence)
+import           Data.Traversable         hiding (for)
 
 import qualified LLVM.General.AST         as AST
 import           LLVM.General.AST         hiding (Name)
 import           LLVM.General.AST.AddrSpace
 import           LLVM.General.AST.Attribute
 import           LLVM.General.AST.CallingConvention
-import           LLVM.General.AST.Constant hiding (GetElementPtr)
+import           LLVM.General.AST.Constant hiding (BitCast, GetElementPtr)
 import           LLVM.General.AST.Float
 import           LLVM.General.AST.Linkage
 import           LLVM.General.AST.Visibility
@@ -80,7 +80,7 @@ instr :: Named Instruction -> LLVM ()
 instr i = tell $ ([],) $ return $ i
 
 call f args = Call True pyrecConvention [] (Right f)
-                        ((,[]) <$> args) [] []
+                   ((,[]) <$> args) [] []
 
 llvmName :: Name -> LName
 llvmName = \case
@@ -144,7 +144,7 @@ llvmFun env cvs args e = do
 
   tell (defs, [])
 
-  let envParam = Parameter (PointerType pVal $ AddrSpace 0) (lname "env") [Nest]
+  let envParam = Parameter (ptr pVal) (lname "env") [Nest]
 
   closureHeader <- fmap join $ forM (zip [0..] closedLNames) $ \(idx, name) -> do
         loc <- gen
@@ -170,8 +170,22 @@ llvmFun env cvs args e = do
              Nothing
              [BasicBlock (lname "entry") (closureHeader ++ block)
               $ Do $ Unreachable  []]
-  res <- gen
-  return res
+
+  tramp <- gen
+  instr $ tramp := Alloca (IntegerType 8) (Just $ mkConstant 72) 16 []
+  instr $ Do $ Call True pyrecConvention []
+    (Right $ ConstantOperand $ GlobalReference $ lname "llvm.init.trampoline")
+    ((,[]) <$> [ LocalReference tramp
+               , ConstantOperand $ GlobalReference $ funName
+               , LocalReference env ]) [] []
+
+  tramp' <- gen
+  instr $ tramp' := Call True pyrecConvention []
+    (Right $ ConstantOperand $ GlobalReference $ lname "llvm.adjust.trampoline")
+    ((,[]) <$> [ LocalReference tramp ]) [] []
+  instr $ funName := BitCast (LocalReference tramp')
+    (ptr $ FunctionType VoidType (for args $ const pVal) False) []
+  return funName
 
   where closedLNames = llvmName' <$> cvs
         llvmName' = \case
@@ -193,8 +207,7 @@ llvmClosure names = do
 
 mkConstant = ConstantOperand . Int 32
 
-pVal :: Type
-pVal = PointerType (IntegerType 8) $ AddrSpace 0
+ptr t = PointerType t $ AddrSpace 0
 
-ppVal :: Type
-ppVal = PointerType pVal $ AddrSpace 0
+pVal :: Type
+pVal = ptr $ IntegerType 8

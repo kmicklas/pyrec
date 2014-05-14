@@ -45,7 +45,7 @@ funs = M.fromList $ numBinOp <$> fnames
 defaultEnv = M.union types funs
 
 runtimeDecls :: [Definition]
-runtimeDecls = arith ++ rts
+runtimeDecls = arith ++ rts ++ [trampInit, trampAdjust]
 
   where arith = binOp <$> ("pyrec"++) <$> fnames
         rts   = (function "pyrecLoadNumber"
@@ -54,10 +54,14 @@ runtimeDecls = arith ++ rts
                 : (function "pyrecLoadString" [ pyrecArg "string"] pVal)
                 : (rtsFun <$> ("pyrec"++) <$> [ "Return", "Except"] )
 
-        rtsFun name = function name [ pyrecArg "val" ]             VoidType
-        binOp  name = function name [ Parameter ppVal (lname "env") []
+        rtsFun name = function name [ pyrecArg "val" ] VoidType
+        binOp  name = function name [ Parameter (ptr pVal) (lname "env") []
                                     , pyrecArg "rk", pyrecArg "ek"
-                                    , pyrecArg "a",  pyrecArg "b"] VoidType
+                                    , pyrecArg "a",  pyrecArg "b" ] VoidType
+        trampInit = function "llvm.init.trampoline" [ pyrecArg "tramp"
+                                                    , pyrecArg "f"
+                                                    , pyrecArg "env" ] VoidType
+        trampAdjust = function "llvm.adjust.trampoline" [ pyrecArg "tramp" ] pVal
         pyrecArg name = Parameter pVal (lname name) []
         function name args return = GlobalDefinition
                                     $ Function External
