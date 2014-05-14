@@ -5,7 +5,7 @@ import           Prelude                  hiding (map, mapM, mapM_, forM, forM_)
 import           Control.Applicative
 import           Control.Monad.RWS        hiding (mapM, mapM_, forM_, forM, sequence)
 
-import           Data.Set
+import           Data.Set                 as S
 import           Data.Monoid
 import           Data.Word
 import           Data.Foldable            hiding (toList)
@@ -65,16 +65,20 @@ exprFrees = \case
   Continue k e      -> valFrees k `mappend` valFrees e
   Fix fns e         -> funsFrees fns `mappend` exprFrees e
 
+a \?\ b = S.filter pred a \\ b
+  where pred (Name _ Intrinsic) = False
+        pred _                  = True
+
 valFrees :: Val -> Set Name
 valFrees = \case
   Var n    -> singleton n
-  Cont a e -> exprFrees e \\ singleton a
+  Cont a e -> exprFrees e \?\ singleton a
   _        -> mempty
 
 funsFrees :: [Fun] -> Set Name
-funsFrees fns = foldMap funFrees fns \\ foldMap (singleton . funName) fns
+funsFrees fns = foldMap funFrees fns \?\ foldMap (singleton . funName) fns
   where funFrees :: Fun -> Set Name
-        funFrees (Fun _ as (rc, ec) e) = exprFrees e \\ fromList (rc : ec : as)
+        funFrees (Fun _ as (rc, ec) e) = exprFrees e \?\ fromList (rc : ec : as)
 
 instr :: Named Instruction -> LLVM ()
 instr i = tell $ ([],) $ return $ i
