@@ -1,30 +1,34 @@
 module Pyrec.LLVM where
 
-import Data.Set
-import Data.Word
-import Data.Monoid
-import Data.Foldable hiding (toList)
+import           Prelude                  hiding (map, mapM, mapM_)
 
-import Control.Monad.RWS
-import Control.Applicative
+import           Control.Applicative
+import           Control.Monad.RWS        hiding (mapM, mapM_, sequence)
 
-import Pyrec.Misc
-import Pyrec.CPS
+import           Data.Set
+import           Data.Monoid
+import           Data.Word
+import           Data.Foldable            hiding (toList)
+import           Data.Traversable         hiding (sequence)
 
-import LLVM.General.AST hiding (Name)
-import LLVM.General.AST.AddrSpace
-import LLVM.General.AST.CallingConvention
-import LLVM.General.AST.Constant
-import LLVM.General.AST.Float
-import LLVM.General.AST.Linkage
-import LLVM.General.AST.Visibility
+import qualified LLVM.General.AST         as AST
+import           LLVM.General.AST         hiding (Name)
+import           LLVM.General.AST.AddrSpace
+import           LLVM.General.AST.CallingConvention
+import           LLVM.General.AST.Constant
+import           LLVM.General.AST.Float
+import           LLVM.General.AST.Linkage
+import           LLVM.General.AST.Visibility
 
-import qualified LLVM.General.AST as AST (Name(..))
+import           Pyrec.Misc
+import           Pyrec.CPS
+
 
 type LName = AST.Name
 lname      = AST.Name
 
 type LLVM = RWS () ([Definition], [Named Instruction]) Word
+
 
 pyrecConvention :: CallingConvention
 pyrecConvention = C
@@ -54,24 +58,22 @@ gen = UnName <$> get <* modify (+ 1)
 funName :: Fun -> Name
 funName (Fun n _ _ _) = n
 
-frees :: Set Name -> Expr -> Set Name
-frees env = \case
-  App f as (rc, ec) -> foldMap (valFrees env) $ f : rc : ec : as
-  Fix fns e         -> fixFrees env fns `mappend` frees env' e
-    where env' = mappend env $ foldMap (singleton . funName) fns
+exprFrees :: Expr -> Set Name
+exprFrees = \case
+  App f as (rc, ec) -> foldMap valFrees $ f : rc : ec : as
+  Continue k e      -> valFrees k `mappend` valFrees e
+  Fix fns e         -> funsFrees fns `mappend` exprFrees e
 
-valFrees :: Set Name -> Val -> Set Name
-valFrees env = \case
-  Var n -> if member n env then mempty else singleton n
-  _     -> mempty
+valFrees :: Val -> Set Name
+valFrees = \case
+  Var n    -> singleton n
+  Cont a e -> exprFrees e \\ singleton a
+  _        -> mempty
 
-fixFrees :: Set Name -> [Fun] -> Set Name
-fixFrees env fns = foldMap (funFrees env') fns
-  where env' = mappend env $ foldMap (singleton . funName) fns
-
-funFrees :: Set Name -> Fun -> Set Name
-funFrees env (Fun _ as (rc, ec) e) = frees env' e
-  where env' = mappend env $ fromList $ rc : ec : as
+funsFrees :: [Fun] -> Set Name
+funsFrees fns = foldMap funFrees fns \\ foldMap (singleton . funName) fns
+  where funFrees :: Fun -> Set Name
+        funFrees (Fun _ as (rc, ec) e) = exprFrees e \\ fromList (rc : ec : as)
 
 instr :: Named Instruction -> LLVM ()
 instr i = tell $ ([],) $ return $ i
@@ -87,7 +89,8 @@ operand = \case
   Var n -> return $ case n of
     (Name n Intrinsic)  -> ConstantOperand $ GlobalReference
                            $ lname $ "pyrec" ++ n
-    (Name n (User _ w)) -> LocalReference  $ localName n w
+    (Name n (User _ w)) -> LocalReference
+                           $ lname $ n ++ "$" ++ show w
   Num n -> do
     res <- gen
     let fop = ConstantOperand $ GlobalReference
@@ -100,6 +103,12 @@ operand = \case
               $ lname "pyrecLoadString"
     instr $ res := call fop [_]
     return $ LocalReference res
+  c@(Cont arg body) -> do
+    let closureVars = toList $ valFrees c
+    kid <- llvmFun closureVars [arg] body
+    env <- llvmEnv closureVars
+    llvmClosure env kid
+    return $ LocalReference kid
 
 llvmExpr :: Expr -> LLVM LName
 llvmExpr = \case
@@ -118,40 +127,44 @@ llvmExpr = \case
     return res
 
   Fix fns e -> do
-    let closureVars = toList $ (fixFrees mempty) fns
-    fids <- sequence $ llvmFun closureVars <$> fns
-    env <- llvmEnv closureVars
-    sequence $ llvmClosure env <$>
-      zip fids (funName <$> fns)
+    let closureVars = toList $ funsFrees fns
+    let lf :: Fun -> LLVM LName
+        lf (Fun _ args (rk, ek) body) =
+          llvmFun closureVars (rk : ek : args) body
+    fids <- mapM lf fns
+    env  <- llvmEnv closureVars
+    mapM_ (llvmClosure env) fids
     llvmExpr e
 
-llvmFun :: [Name] -> Fun -> LLVM LName
-llvmFun cvs (Fun n args (rk, ek) e) =
+llvmFun :: [Name] -> [Name] -> Expr -> LLVM LName
+llvmFun cvs args e =
   do (_, (ds, is)) <- censor (const ([], [])) $ listens id $ llvmExpr e
      tell (ds, [])
+     res <- gen
      tell $ (,[]) $ return $ GlobalDefinition $
        Function Private
                 Hidden
                 pyrecConvention
                 []
                 VoidType
-                n''
-                (params, False)
+                res
+                (llvmParam <$> args, False)
                 []
                 Nothing
                 0
                 Nothing
                 [BasicBlock (lname "entry") is $ Do $ Unreachable  []]
-     return n''
-  where (Name n' (User _ w)) = n
-        n''                  = localName n' w
-        params               = _
+     return res
+  where llvmParam :: Name -> Parameter
+        llvmParam n = (flip $ Parameter pVal) [] $ lname $ case n of
+          (Name n Intrinsic)  -> "pyrec" ++ n
+          (Name n (User _ w)) -> n ++ "$" ++ show w
 
-llvmEnv :: [Name] -> LLVM Name
+llvmEnv :: [Name] -> LLVM LName
 llvmEnv ns = undefined
 
-llvmClosure :: Name -> (LName, Name) -> LLVM ()
-llvmClosure env (ln, n) = undefined
+llvmClosure :: LName -> LName -> LLVM ()
+llvmClosure env fid = undefined
 
 pVal :: Type
 pVal = PointerType (IntegerType 8) $ AddrSpace 0
