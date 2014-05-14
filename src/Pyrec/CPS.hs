@@ -12,11 +12,12 @@ data Val
   = Var Name
   | Num Double
   | Str String
+  | Cont Name Expr
   deriving (Show, Eq)
 
 data Expr
   = App Val [Val] (Val, Val)
-  | Cont Val Val
+  | Continue Val Val
   | Fix [Fun] Expr
   deriving (Show, Eq)
 

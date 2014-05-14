@@ -110,7 +110,7 @@ llvmExpr = \case
     instr $ res := call fop aops
     return res
 
-  Cont k a -> do
+  Continue k a -> do
     res <- gen
     kop <- operand k
     aop <- operand a
