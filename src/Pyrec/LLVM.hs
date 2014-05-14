@@ -1,9 +1,9 @@
 module Pyrec.LLVM where
 
-import           Prelude                  hiding (map, mapM, mapM_)
+import           Prelude                  hiding (map, mapM, mapM_, forM, forM_)
 
 import           Control.Applicative
-import           Control.Monad.RWS        hiding (mapM, mapM_, sequence)
+import           Control.Monad.RWS        hiding (mapM, mapM_, forM_, forM, sequence)
 
 import           Data.Set
 import           Data.Monoid
@@ -14,8 +14,9 @@ import           Data.Traversable         hiding (sequence)
 import qualified LLVM.General.AST         as AST
 import           LLVM.General.AST         hiding (Name)
 import           LLVM.General.AST.AddrSpace
+import           LLVM.General.AST.Attribute
 import           LLVM.General.AST.CallingConvention
-import           LLVM.General.AST.Constant
+import           LLVM.General.AST.Constant hiding (GetElementPtr)
 import           LLVM.General.AST.Float
 import           LLVM.General.AST.Linkage
 import           LLVM.General.AST.Visibility
@@ -81,9 +82,6 @@ instr i = tell $ ([],) $ return $ i
 call f args = Call True pyrecConvention [] (Right f)
                         ((,[]) <$> args) [] []
 
-localName :: String -> Word -> LName
-localName n w = lname $ n ++ "$" ++ show w
-
 operand :: Val -> LLVM Operand
 operand = \case
   Var n -> return $ case n of
@@ -104,11 +102,10 @@ operand = \case
     instr $ res := call fop [_]
     return $ LocalReference res
   c@(Cont arg body) -> do
-    let closureVars = toList $ valFrees c
-    kid <- llvmFun closureVars [arg] body
-    env <- llvmEnv closureVars
-    llvmClosure env kid
-    return $ LocalReference kid
+    let closedVars = toList $ valFrees c
+    env <- llvmClosure closedVars
+    LocalReference <$> llvmFun env closedVars [arg] body
+
 
 llvmExpr :: Expr -> LLVM LName
 llvmExpr = \case
@@ -127,44 +124,66 @@ llvmExpr = \case
     return res
 
   Fix fns e -> do
-    let closureVars = toList $ funsFrees fns
+    let closedVars = toList $ funsFrees fns
+    env <- llvmClosure closedVars
     let lf :: Fun -> LLVM LName
         lf (Fun _ args (rk, ek) body) =
-          llvmFun closureVars (rk : ek : args) body
-    fids <- mapM lf fns
-    env  <- llvmEnv closureVars
-    mapM_ (llvmClosure env) fids
+          llvmFun env closedVars (rk : ek : args) body
+    mapM_ lf fns
     llvmExpr e
 
-llvmFun :: [Name] -> [Name] -> Expr -> LLVM LName
-llvmFun cvs args e =
-  do (_, (ds, is)) <- censor (const ([], [])) $ listens id $ llvmExpr e
-     tell (ds, [])
-     res <- gen
-     tell $ (,[]) $ return $ GlobalDefinition $
-       Function Private
-                Hidden
-                pyrecConvention
-                []
-                VoidType
-                res
-                (llvmParam <$> args, False)
-                []
-                Nothing
-                0
-                Nothing
-                [BasicBlock (lname "entry") is $ Do $ Unreachable  []]
-     return res
-  where llvmParam :: Name -> Parameter
-        llvmParam n = (flip $ Parameter pVal) [] $ lname $ case n of
-          (Name n Intrinsic)  -> "pyrec" ++ n
+llvmFun :: (Type, LName) -> [Name] -> [Name] -> Expr -> LLVM LName
+llvmFun (ty, env) cvs args e = do
+  let (_, _, (defs, block)) = runRWS (llvmExpr e) () 0
+  tell (defs, [])
+
+  let envParam = Parameter (PointerType ty $ AddrSpace 0) env [Nest]
+
+  closureHeader <- fmap join $ forM (zip [1..] closedLNames) $ \(idx, name) -> do
+        loc <- gen
+        return $ [ loc  :=
+                   GetElementPtr True (LocalReference env) [mkConstant idx] []
+                 , name :=
+                   Load False (LocalReference loc) Nothing 8 []
+                 ]
+
+  funName <- gen
+  tell $ (,[]) $ return $ GlobalDefinition $
+    Function Private
+             Hidden
+             pyrecConvention
+             []
+             VoidType
+             funName
+             (envParam : ((flip $ Parameter pVal) [] <$> llvmName <$> args), False)
+             []
+             Nothing
+             0
+             Nothing
+             [BasicBlock (lname "entry") (closureHeader ++ block)
+              $ Do $ Unreachable  []]
+  res <- gen
+  return res
+
+  where llvmName :: Name -> LName
+        llvmName n = lname $ case n of
+          (Name n Intrinsic)  -> error "how could function params be globals?"
           (Name n (User _ w)) -> n ++ "$" ++ show w
 
-llvmEnv :: [Name] -> LLVM LName
-llvmEnv ns = _
+        closedLNames = llvmName <$> cvs
 
-llvmClosure :: LName -> LName -> LLVM ()
-llvmClosure env fid = _
+llvmClosure :: [Name] -> LLVM (Type, LName)
+llvmClosure names = do
+  let len = length names
+  res <- gen
+  let ty = ArrayType (fromIntegral len) pVal
+  instr $ res := Alloca ty Nothing 8 []
+  forM_ (zip [1..] names) $ \(idx, name) -> do
+    op <- operand $ Var name
+    instr $ Do $ AST.InsertElement (LocalReference res) op (mkConstant idx) []
+  return (ty, res)
+
+mkConstant = ConstantOperand . Int 32
 
 pVal :: Type
 pVal = PointerType (IntegerType 8) $ AddrSpace 0
