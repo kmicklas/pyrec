@@ -7,6 +7,7 @@ import qualified Data.ByteString          as BS
 import qualified System.IO                as IO
 
 import           LLVM.General.AST         as AST
+import           LLVM.General.PrettyPrint
 
 import           LLVM.General.Context
 import           LLVM.General.Module      as Mod
@@ -54,6 +55,9 @@ dumpWarnings = compileDumpWarnings $ const $ mzero
 dumpLLVM_AST = getModule $ \_ user -> do
   progString <- lift $ moduleLLVMAssembly user
   lift $ IO.hPutStr IO.stdout $ progString
+
+dumpLLVM_General = compileDumpWarnings $ \user -> 
+  lift $ IO.hPutStr IO.stdout $ showPretty user
 
 dumpObjectFile = getModule $ \_ linked -> do
   liftHigherJoin withDefaultTargetMachine $ \machine -> do
