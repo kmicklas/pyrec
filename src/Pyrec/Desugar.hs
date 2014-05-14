@@ -28,32 +28,34 @@ mkUnique :: SourcePos -> DS Unique
 mkUnique p = User p <$> gen
 
 convModule :: Module -> DS D.Expr
-convModule (Module _ _ b) = convBlock b
+convModule (Module _ _ b) = convBlock (newPos "test" 0 0) b
 
-convBlock :: Block -> DS D.Expr
-convBlock (Statements stmts) = case stmts of
-  []                             -> return $ D.E _ (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
+convBlock :: SourcePos -> Block -> DS D.Expr
+convBlock p (Statements stmts) = case stmts of
+  []                             -> D.E <$> mkUnique p
+                                    <*> (pure $ D.T $ IR.TIdent "Nothing")
+                                    <*> (pure $ IR.Ident "nothing")
   (Node p (LetStmt _let) : rest) -> letCommon IR.Val p _let rest
   (Node p (VarStmt _let) : rest) -> letCommon IR.Var p _let rest
   [Node p e]                     -> convExpr $ Node p e
   (Node p e              : rest) ->
-    recur $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p) Nothing)
-                                 (Node p e))) : rest
+    recur p $ Node p (LetStmt (Let (Bind (Node p $ "temp$" ++ showLoc p) Nothing)
+                                   (Node p e))) : rest
 
-  where recur = convBlock . Statements
+  where recur p' = convBlock p' . Statements
 
-        letCommon vv p (Let bd e) rest = do
-          uniq <- mkUnique p
+        letCommon vv p' (Let bd e) rest = do
+          uniq <- mkUnique p'
           D.E uniq D.TUnknown <$>
             (IR.Let <$> (IR.Def vv <$> convBind bd <*> convExpr e)
                     <*> afterDef uniq rest)
           where afterDef p [] = do tell [Msg p D.EndBlockWithDef]
-                                   recur []
+                                   recur p' []
                 afterDef p1 rest@(Node p2 _ : _) =
                   do u2 <- mkUnique p2
                      when (sameLine p1 u2) $
                        tell [Msg u2 D.SameLineStatements]
-                     recur rest
+                     recur p2 rest
                 sameLine :: Unique -> Unique -> Bool
                 sameLine (User a _ ) (User b _ ) = sourceLine a == sourceLine b
                 sameLine _           _           = False
@@ -86,20 +88,20 @@ convExpr (Node p e) = case e of
   Num n             -> mkT <*> (pure $ IR.TIdent "Number") <*> (pure $ IR.Num n)
   Ident (Node _ id) -> mkU <*> (pure $ IR.Ident id)
 
-  Fun Nothing Nothing Nothing Nothing     body -> convBlock $ body
+  Fun Nothing Nothing Nothing Nothing     body -> convBlock p $ body
   Fun Nothing Nothing Nothing (Just retT) body ->
     convExpr  $ rebuild $ TypeConstraint (rebuild $ Block body) retT
 
   Fun (Just tparams) Nothing Nothing retT body -> mkT <*> t <*> body'
     where tparams' = mapM convBN tparams
           t        = IR.TParam <$> tparams' <*> convMaybeType retT
-          body'    = IR.FunT   <$> tparams' <*> convBlock     body
+          body'    = IR.FunT   <$> tparams' <*> convBlock   p body
 
   Fun Nothing Nothing (Just params) retT body -> mkT <*> t <*> body'
     where binds    = mapM convBind params
           types    = (\(D.BT _ _ t) -> t) <$$> binds
           t        = IR.TFun <$> types <*> convMaybeType retT
-          body'    = IR.Fun  <$> binds <*> convBlock     body
+          body'    = IR.Fun  <$> binds <*> convBlock   p body
 
   Fun tparams Nothing params retT body ->
     convExpr $ rebuild $ Fun tparams Nothing Nothing Nothing
