@@ -46,14 +46,14 @@ cps (R.E l t e) (rk, ek) = case e of
     fv <- gen
 
     let finalApply :: [Val] -> CPS Expr
-        finalApply argVals = return $ App (Var fv) argVals (rk, ek)
+        finalApply argVals = return $ App (Var fv) (reverse argVals) (rk, ek)
 
-    foldr evalArg finalApply args $ []
+    cps f =<< (, ek) <$> Cont fv <$> foldl evalArg finalApply args []
 
-    where evalArg :: R.Expr -> ([Val] -> CPS Expr) -> ([Val] -> CPS Expr)
-          evalArg a k = \restArgs -> do
+    where evalArg :: ([Val] -> CPS Expr) -> R.Expr -> ([Val] -> CPS Expr)
+          evalArg k a = \restArgs -> do
             av <- gen
-            cps a =<< (, ek) <$> (Cont av <$> (k $ Var av : restArgs))
+            cps a =<< (, ek) <$> Cont av <$> (k $ Var av : restArgs)
 
   where k :: Val -> Expr
         k = Continue rk
