@@ -32,7 +32,7 @@ convModule (Module _ _ b) = convBlock b
 
 convBlock :: Block -> DS D.Expr
 convBlock (Statements stmts) = case stmts of
-  []                             -> return $ D.E undefined (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
+  []                             -> return $ D.E _ (D.T $ IR.TIdent "Nothing") $ IR.Ident "nothing"
   (Node p (LetStmt _let) : rest) -> letCommon IR.Val p _let rest
   (Node p (VarStmt _let) : rest) -> letCommon IR.Var p _let rest
   [Node p e]                     -> convExpr $ Node p e

@@ -71,9 +71,9 @@ instance (PrettyPrint bt, PrettyPrint bn, PrettyPrint id,
     Extend obj f v -> pp obj ++ ".{" ++ f ++ ": " ++ pp v ++ "}"
     Access obj f   -> pp obj ++ "." ++ f
 
-    Let   d  e   -> undefined
-    Graph ds e   -> undefined
-    Assign _ _   -> undefined
+    Let   d  e   -> _
+    Graph ds e   -> _
+    Assign _ _   -> _
 
 instance (PrettyPrint bn, PrettyPrint id, PrettyPrint ty) =>
          PrettyPrint (Type bn id ty) where

@@ -161,10 +161,10 @@ llvmFun cvs args e =
           (Name n (User _ w)) -> n ++ "$" ++ show w
 
 llvmEnv :: [Name] -> LLVM LName
-llvmEnv ns = undefined
+llvmEnv ns = _
 
 llvmClosure :: LName -> LName -> LLVM ()
-llvmClosure env fid = undefined
+llvmClosure env fid = _
 
 pVal :: Type
 pVal = PointerType (IntegerType 8) $ AddrSpace 0

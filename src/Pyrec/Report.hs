@@ -62,7 +62,7 @@ merge (EE l t errors _) inner' = EE l t errors inner'
 
 -- | looks for shadowed identifiers
 rpShadow :: ExprWithErrors Id -> ExprWithErrors Id
-rpShadow = undefined
+rpShadow = _
 
 -- | looks for identifiers bound twice 'concurrently', e.g:
 -- |  - identifier names when pattern matching
@@ -71,7 +71,7 @@ rpShadow = undefined
 -- |    (redundant field names in record is impossible)
 -- | this is much more serious than 'normal' shadowing
 rpDup :: ExprWithErrors Id -> ExprWithErrors Id
-rpDup = undefined
+rpDup = _
 
 -- | reports type errors
 rpTypeError :: ExprWithErrors C.Id -> ExprWithErrors C.Id
