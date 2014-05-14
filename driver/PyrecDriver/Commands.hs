@@ -14,14 +14,15 @@ import           LLVM.General.Module      as Mod
 import           LLVM.General.Target
 
 import           Pyrec
+import           Pyrec.Misc
+import           Pyrec.Error
 import           Pyrec.PrettyPrint
 
 import           PyrecDriver.Error
 
-
-compile' :: String
-         -> DriverError ([Message Pyrec.Error], AST.Module)
-compile' = mapErrorT (fmap showE) . ErrorT . return . compile
+putInErrorT :: (Show e, Functor n, Monad n)
+           => (a -> Either e b) -> a -> ErrorT String n b
+putInErrorT c = mapErrorT (fmap showE) . ErrorT . return . c
  where showE = \case Right a -> Right a
                      Left  e -> Left $ show e
 
@@ -29,7 +30,7 @@ compile' = mapErrorT (fmap showE) . ErrorT . return . compile
 
 compileDumpWarnings  :: (AST.Module -> DriverError r) -> DriverError r
 compileDumpWarnings k = do
-  (warnings, user) <- compile' =<< lift IO.getContents
+  (warnings, user) <- putInErrorT compile =<< lift IO.getContents
   lift $ forM_ warnings $ IO.hPutStrLn IO.stderr . pp
 
   k user
@@ -52,12 +53,17 @@ dumpWarnings, dumpLLVM_AST, dumpObjectFile :: DriverError ()
 
 dumpWarnings = compileDumpWarnings $ const $ mzero
 
+dumpCPS = do
+  (warnings, user) <- putInErrorT cumulativeCPS' =<< lift IO.getContents
+  lift $ forM_ warnings $ IO.hPutStrLn IO.stderr . pp
+  lift $ IO.hPutStr IO.stdout $ show user
+
+dumpLLVM_General = compileDumpWarnings $ \user ->
+  lift $ IO.hPutStr IO.stdout $ showPretty user
+
 dumpLLVM_AST = getModule $ \_ user -> do
   progString <- lift $ moduleLLVMAssembly user
   lift $ IO.hPutStr IO.stdout $ progString
-
-dumpLLVM_General = compileDumpWarnings $ \user -> 
-  lift $ IO.hPutStr IO.stdout $ showPretty user
 
 dumpObjectFile = getModule $ \_ linked -> do
   liftHigherJoin withDefaultTargetMachine $ \machine -> do

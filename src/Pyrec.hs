@@ -12,6 +12,14 @@ module Pyrec
   , cps
   , llvm
 
+  , cumulativeDesugar
+  , cumulativeScopeCheck
+  , cumulativeTypeCheck
+  , cumulativeReport
+  , cumulativeCPS
+  , cumulativeCPS'
+  , cumulativeLLVM
+
   , compile
   ) where
 
@@ -86,15 +94,35 @@ cps e = rws $ \_ s -> let
   (a, s') = runState (C.cpsProgram "Return" "Except" e) s
   in (a, s', mempty)
 
-llvm :: K.Expr -> LLVM.General.AST.Module
-llvm = L.llvmModule "Pyret" "userMain" runtimeDecls
+llvm :: K.Expr -> Compile LLVM.General.AST.Module
+llvm e = do
+  s <- get
+  return $ L.llvmModule s "Pyret" "userMain" runtimeDecls e
 
+
+
+cumulativeDesugar :: String -> Either ParseError (Compile D.Expr)
+cumulativeDesugar = desugar <.> parse
+
+cumulativeScopeCheck :: String -> Either ParseError (Compile C.Expr)
+cumulativeScopeCheck = scopeCheck defaultEnv <..> cumulativeDesugar
+
+cumulativeTypeCheck :: String -> Either ParseError (Compile C.Expr)
+cumulativeTypeCheck = typeCheck defaultEnv <..> cumulativeScopeCheck
+
+cumulativeReport :: String -> Either ParseError (Compile R.Expr)
+cumulativeReport = fmap (report =<<) . cumulativeTypeCheck
+
+cumulativeCPS :: String -> Either ParseError (Compile K.Expr)
+cumulativeCPS  = fmap (cps =<<) . cumulativeReport
+
+cumulativeCPS' = extract <.> cumulativeCPS
+
+cumulativeLLVM :: String -> Either ParseError (Compile LLVM.General.AST.Module)
+cumulativeLLVM = fmap (llvm =<<) . cumulativeCPS
 
 compile :: String -> Either ParseError ([Message R.Error], Module)
-compile = extract <.> desugarEmit <.> parse
-  where desugarEmit = llvm <.> cps <=< report
-                      . typeCheck defaultEnv
-                      . scopeCheck defaultEnv
-                      <=< desugar
-        extract m = (warnings, mod)
-          where (mod, _, warnings) = runRWS m () 0
+compile = extract <.> cumulativeLLVM
+
+extract m = (warnings, mod)
+  where (mod, _, warnings) = runRWS m () 0

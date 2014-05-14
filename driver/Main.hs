@@ -14,8 +14,9 @@ main = do args <-getArgs
 
 data Arguments
   = Lint
-  | LlvmAst
+  | Cps
   | LlvmGeneral
+  | LlvmAst
   | ObjectFile
   deriving (Typeable, Data, Eq)
 
@@ -25,12 +26,14 @@ instance Attributes Arguments where
 instance RecordCommand Arguments where
   mode_summary = \case
     Lint        -> "print warnings and discard IR"
-    LlvmAst     -> "print out the LLVM AST"
+    Cps         -> "print the CPS'd IR"
     LlvmGeneral -> "print AST in Haskell syntax"
+    LlvmAst     -> "print out the LLVM AST"
     ObjectFile  -> "dump (to stdout) a object file for linking"
 
   run' cmd _ = topCatchError $ case cmd of
     Lint        -> dumpWarnings
-    LlvmAst     -> dumpLLVM_AST
+    Cps         -> dumpCPS
     LlvmGeneral -> dumpLLVM_General
+    LlvmAst     -> dumpLLVM_AST
     ObjectFile  -> dumpObjectFile

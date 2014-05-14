@@ -24,7 +24,6 @@ import           LLVM.General.AST.Visibility
 import           Pyrec.Misc
 import           Pyrec.CPS
 
-
 type LName = AST.Name
 lname      = AST.Name
 
@@ -34,10 +33,10 @@ type LLVM = RWS () ([Definition], [Named Instruction]) Word
 pyrecConvention :: CallingConvention
 pyrecConvention = C
 
-llvmModule :: String -> String -> [Definition] -> Expr -> Module
-llvmModule modName entryName decls e =
+llvmModule :: Word -> String -> String -> [Definition] -> Expr -> Module
+llvmModule count modName entryName decls e =
   Module modName Nothing Nothing (decls ++ (main : defs))
-  where (_, _, (defs, block)) = runRWS (llvmExpr e) () 0
+  where (_, _, (defs, block)) = runRWS (llvmExpr e) () count
         main = GlobalDefinition
                $ Function External
                           Default
@@ -65,20 +64,17 @@ exprFrees = \case
   Continue k e      -> valFrees k `mappend` valFrees e
   Fix fns e         -> funsFrees fns `mappend` exprFrees e
 
-a \?\ b = S.filter pred a \\ b
-  where pred (Name _ Intrinsic) = False
-        pred _                  = True
-
 valFrees :: Val -> Set Name
 valFrees = \case
-  Var n    -> singleton n
-  Cont a e -> exprFrees e \?\ singleton a
-  _        -> mempty
+  Var (Name _ Intrinsic) -> mempty -- we don't want to close over globals
+  Var n                  -> singleton n
+  Cont a e               -> exprFrees e \\ singleton a
+  _                      -> mempty
 
 funsFrees :: [Fun] -> Set Name
-funsFrees fns = foldMap funFrees fns \?\ foldMap (singleton . funName) fns
+funsFrees fns = foldMap funFrees fns \\ foldMap (singleton . funName) fns
   where funFrees :: Fun -> Set Name
-        funFrees (Fun _ as (rc, ec) e) = exprFrees e \?\ fromList (rc : ec : as)
+        funFrees (Fun _ as (rc, ec) e) = exprFrees e \\ fromList (rc : ec : as)
 
 instr :: Named Instruction -> LLVM ()
 instr i = tell $ ([],) $ return $ i
@@ -140,17 +136,21 @@ llvmExpr = \case
     mapM_ lf fns
     llvmExpr e
 
-llvmFun :: (Type, LName) -> [Name] -> [Name] -> Expr -> LLVM LName
-llvmFun (ty, env) cvs args e = do
-  let (_, _, (defs, block)) = runRWS (llvmExpr e) () 0
+llvmFun :: LName -> [Name] -> [Name] -> Expr -> LLVM LName
+llvmFun env cvs args e = do
+  s <- get
+  let (_, s', (defs, block)) = runRWS (llvmExpr e) () s
+  put s'
+
   tell (defs, [])
 
-  let envParam = Parameter (PointerType ty $ AddrSpace 0) env [Nest]
+  let envParam = Parameter (PointerType pVal $ AddrSpace 0) (lname "env") [Nest]
 
-  closureHeader <- fmap join $ forM (zip [1..] closedLNames) $ \(idx, name) -> do
+  closureHeader <- fmap join $ forM (zip [0..] closedLNames) $ \(idx, name) -> do
         loc <- gen
         return $ [ loc  :=
-                   GetElementPtr True (LocalReference env) [mkConstant idx] []
+                   GetElementPtr True (LocalReference $ lname "env")
+                                 [mkConstant idx] []
                  , name :=
                    Load False (LocalReference loc) Nothing 8 []
                  ]
@@ -179,18 +179,22 @@ llvmFun (ty, env) cvs args e = do
             error "how could function params or closed-over vars be globals?"
           n                -> llvmName n
 
-llvmClosure :: [Name] -> LLVM (Type, LName)
+llvmClosure :: [Name] -> LLVM LName
 llvmClosure names = do
   let len = length names
   res <- gen
-  let ty = ArrayType (fromIntegral len) pVal
-  instr $ res := Alloca ty Nothing 8 []
-  forM_ (zip [1..] names) $ \(idx, name) -> do
+  instr $ res := Alloca pVal (Just $ mkConstant $ fromIntegral len)  0 []
+  forM_ (zip [0..] names) $ \(idx, name) -> do
+    loc <- gen
+    instr $ loc := GetElementPtr True (LocalReference res) [mkConstant idx] []
     op <- operand $ Var name
-    instr $ Do $ AST.InsertElement (LocalReference res) op (mkConstant idx) []
-  return (ty, res)
+    instr $ Do $ Store False (LocalReference loc) op Nothing 0 []
+  return res
 
 mkConstant = ConstantOperand . Int 32
 
 pVal :: Type
 pVal = PointerType (IntegerType 8) $ AddrSpace 0
+
+ppVal :: Type
+ppVal = PointerType pVal $ AddrSpace 0

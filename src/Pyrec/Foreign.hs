@@ -51,11 +51,12 @@ runtimeDecls = arith ++ rts
         rts   = (function "pyrecLoadNumber"
                     [Parameter (FloatingPointType 64 IEEE) (lname "num") []]
                     pVal)
-                : (function "pyrecLoadString" [pyrecArg "string"] pVal)
-                : (rtsFun <$> ("pyrec"++) <$> ["Return", "Except"])
+                : (function "pyrecLoadString" [ pyrecArg "string"] pVal)
+                : (rtsFun <$> ("pyrec"++) <$> [ "Return", "Except"] )
 
-        rtsFun name = function name [pyrecArg "val"]               VoidType
-        binOp  name = function name [ pyrecArg "rk", pyrecArg "ek"
+        rtsFun name = function name [ pyrecArg "val" ]             VoidType
+        binOp  name = function name [ Parameter ppVal (lname "env") []
+                                    , pyrecArg "rk", pyrecArg "ek"
                                     , pyrecArg "a",  pyrecArg "b"] VoidType
         pyrecArg name = Parameter pVal (lname name) []
         function name args return = GlobalDefinition
