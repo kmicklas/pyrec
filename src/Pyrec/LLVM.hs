@@ -82,13 +82,17 @@ instr i = tell $ ([],) $ return $ i
 call f args = Call True pyrecConvention [] (Right f)
                         ((,[]) <$> args) [] []
 
+llvmName :: Name -> LName
+llvmName = \case
+  Name n Intrinsic  -> lname $ "pyrec" ++ n
+  Name n (User _ w) -> lname $ n ++ "$" ++ show w
+  Gen w             -> UnName w
+
 operand :: Val -> LLVM Operand
 operand = \case
   Var n -> return $ case n of
-    (Name n Intrinsic)  -> ConstantOperand $ GlobalReference
-                           $ lname $ "pyrec" ++ n
-    (Name n (User _ w)) -> LocalReference
-                           $ lname $ n ++ "$" ++ show w
+    Name _ Intrinsic  -> ConstantOperand $ GlobalReference $ llvmName n
+    _                 -> LocalReference                    $ llvmName n
   Num n -> do
     res <- gen
     let fop = ConstantOperand $ GlobalReference
@@ -155,7 +159,7 @@ llvmFun (ty, env) cvs args e = do
              []
              VoidType
              funName
-             (envParam : ((flip $ Parameter pVal) [] <$> llvmName <$> args), False)
+             (envParam : ((flip $ Parameter pVal) [] <$> llvmName' <$> args), False)
              []
              Nothing
              0
@@ -165,12 +169,11 @@ llvmFun (ty, env) cvs args e = do
   res <- gen
   return res
 
-  where llvmName :: Name -> LName
-        llvmName n = lname $ case n of
-          (Name n Intrinsic)  -> error "how could function params be globals?"
-          (Name n (User _ w)) -> n ++ "$" ++ show w
-
-        closedLNames = llvmName <$> cvs
+  where closedLNames = llvmName' <$> cvs
+        llvmName' = \case
+          Name _ Intrinsic ->
+            error "how could function params or closed-over vars be globals?"
+          n                -> llvmName n
 
 llvmClosure :: [Name] -> LLVM (Type, LName)
 llvmClosure names = do
