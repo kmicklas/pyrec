@@ -1,4 +1,4 @@
-module Pyrec.IR.Core where
+module Pyrec.IR.TypeCheck where
 -- The IR after inserting runtime errors
 
 import Control.Applicative
@@ -13,29 +13,27 @@ import           Pyrec.IR.Desugar          (BindN)
 import qualified Pyrec.IR.Desugar    as D
 import qualified Pyrec.IR.ScopeCheck as SC
 import           Pyrec.IR.ScopeCheck       (Id)
-import qualified Pyrec.IR.TypeCheck  as TC
-import           Pyrec.IR.TypeCheck        (BindT, Type, TypeError)
+
+-- passed deeper into the AST to restrict types
+type CType = SC.Type
+-- returned after a term is typechecked
+type RType = Type
 
 data Expr
   = E Unique Type (IR.Expr BindT BindN Id Type Expr)
---  | Error [ErrorMessage]
+-- | TypeError Unique TypeError Expr
   deriving (Eq, Show)
 
-data DupType
-  = Graph
-  | Pattern
-  | Constr
+data BindT
+  = BT Unique String Type
   deriving (Eq, Show)
 
-data Error
-  = Earlier D.Error
-
-  | UnboundId String
-  | MutateVar Unique String
-
-  | DupIdent DupType Unique String
-
-  | TypeError Type TypeError
+data Type
+  = T (IR.Type BindN Id Type)
   deriving (Eq, Show)
 
-type ErrorMessage = Message Error
+data TypeError
+  = TypeMismatch Type --expected
+  | CantCaseAnalyze
+  | AmbiguousType
+  deriving (Eq, Show)

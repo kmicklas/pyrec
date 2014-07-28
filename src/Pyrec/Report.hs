@@ -15,7 +15,9 @@ import           Pyrec.Error
 import           Pyrec.IR
 import qualified Pyrec.IR.Desugar     as D
 import           Pyrec.IR.Desugar                (BindN(..))
-import           Pyrec.IR.Check       as C
+import qualified Pyrec.IR.ScopeCheck  as SC
+import           Pyrec.IR.ScopeCheck             (Id(..))
+import           Pyrec.IR.TypeCheck   as TC
 import qualified Pyrec.IR.Core        as R
 
 type Errors = [R.ErrorMessage]
@@ -23,19 +25,19 @@ type RP     = Writer Errors
 
 -- | We use this to find errors in dead code too
 data ExprWithErrors i
-  = EE Unique C.Type [R.Error] (Pyrec.IR.Expr BindT BindN i C.Type (ExprWithErrors i))
+  = EE Unique TC.Type [R.Error] (Pyrec.IR.Expr BindT BindN i TC.Type (ExprWithErrors i))
   deriving (Eq, Show)
 
-report :: C.Expr -> RP R.Expr
+report :: TC.Expr -> RP R.Expr
 report = trim . convID . rpIdent . rpTypeError . prepare
 
 
-foldExpr :: (ExprWithErrors i -> Pyrec.IR.Expr BindT BindN i C.Type e -> e)
+foldExpr :: (ExprWithErrors i -> Pyrec.IR.Expr BindT BindN i TC.Type e -> e)
               -> ExprWithErrors i -> e
 foldExpr f e@(EE _ _ _ inner) = f e $ foldExpr f <$> inner
 
 -- | Adds an extra field to each node to accumulate errors
-prepare :: C.Expr -> ExprWithErrors Id
+prepare :: TC.Expr -> ExprWithErrors Id
 prepare (E l t e) = EE l t [] $ prepare <$> e
 
 -- | Turns nodes with errors into "bombs"
@@ -54,14 +56,14 @@ err (EE l t errors expr) errors' = EE l t (errors ++ errors') expr
 
 -- | Updates a node with bombs
 merge :: ExprWithErrors ignored
-         -> Pyrec.IR.Expr BindT BindN i C.Type (ExprWithErrors i)
+         -> Pyrec.IR.Expr BindT BindN i TC.Type (ExprWithErrors i)
          -> ExprWithErrors i
 merge (EE l t errors _) inner' = EE l t errors inner'
 
 
 
 -- | looks for shadowed identifiers
-rpShadow :: ExprWithErrors Id -> ExprWithErrors Id
+rpShadow :: ExprWithErrors Id -> ExprWithErrors R.Id
 rpShadow = _
 
 -- | looks for identifiers bound twice 'concurrently', e.g:
@@ -74,20 +76,20 @@ rpDup :: ExprWithErrors Id -> ExprWithErrors Id
 rpDup = _
 
 -- | reports type errors
-rpTypeError :: ExprWithErrors C.Id -> ExprWithErrors C.Id
+rpTypeError :: ExprWithErrors SC.Id -> ExprWithErrors SC.Id
 rpTypeError = foldExpr $ \e@(EE _ t _ _) rest ->
   err (merge e rest) $ (R.TypeError t) <$> getTypeErrors t
   where
-    getTypeErrors :: C.Type -> [R.TypeError]
+    getTypeErrors :: TC.Type -> [R.TypeError]
     -- | deconstructs the type, accumulating errors
     getTypeErrors t = case t of
-      C.TUnknown          -> err $ R.AmbiguousType
-      C.PartialObj fields -> err $ R.PartialObj fields
-      C.TError     terror -> err $ R.TEEarlier  terror
-      C.T t               -> foldMap getTypeErrors t
+      TC.TUnknown          -> err $ R.AmbiguousType
+      TC.PartialObj fields -> err $ R.PartialObj fields
+      TC.TError     terror -> err $ R.TEEarlier  terror
+      TC.T t               -> foldMap getTypeErrors t
       where err a = [a]
 
-rpIdent :: ExprWithErrors C.Id -> ExprWithErrors C.Id
+rpIdent :: ExprWithErrors SC.Id -> ExprWithErrors SC.Id
 rpIdent = foldExpr $ \old rest ->
   err (merge old rest) $ case rest of
     Ident (Unbound i) -> [R.UnboundId i]
@@ -102,7 +104,7 @@ rpIdent = foldExpr $ \old rest ->
 
 -- | converts Id type
 -- needs more boilplate cause can only derive functor for one parameter :(
-convID :: ExprWithErrors C.Id -> ExprWithErrors R.Id
+convID :: ExprWithErrors SC.Id -> ExprWithErrors R.Id
 convID (EE l t errors e) = EE l t errors $ case e of
 
   Num n -> Num n

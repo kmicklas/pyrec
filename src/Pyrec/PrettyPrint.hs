@@ -17,7 +17,8 @@ import           Pyrec.Misc
 import           Pyrec.IR
 
 import qualified Pyrec.IR.Desugar    as D
-import qualified Pyrec.IR.Check      as C
+import qualified Pyrec.IR.ScopeCheck as SC
+import qualified Pyrec.IR.TypeCheck  as TC
 import qualified Pyrec.IR.Core       as R
 
 import           Pyrec.Error
@@ -111,6 +112,7 @@ instance PrettyPrint D.Error where
     D.EndBlockWithDef    -> "The last element in a block must be an expression"
     D.SameLineStatements -> "Two statements should never be put on the same line"
 
+{-
 instance PrettyPrint R.Error where
   pp = \case
     R.Earlier    error     -> pp error
@@ -124,7 +126,11 @@ instance PrettyPrint R.Error where
               R.Constr  -> "type has multiple variants named "         ++ iden ++ "."
               R.Graph   -> "graph has multiple declerations named "    ++ iden ++ "."
 
-    R.TypeError ty err -> pp err ++ " in " ++ pp ty
+    R.TypeError got err -> case err of --pp err ++ " in " ++ pp ty
+      TC.TypeMismatch expt -> "Expected " ++ pp expt ++ ", got " ++ pp got
+      TC.CantCaseAnalyze   -> "Cannot use \"Cases ... end\" to deconstruct " ++ pp got
+      TC.AmbiguousType     -> "Ambiguous type ecountered: " ++ pp got
+-}
 
 instance PrettyPrint D.BindT where
   pp (D.BT _ n t) = pp n ++ " :: " ++ pp t
@@ -134,33 +140,30 @@ instance PrettyPrint D.BindN where
 
 instance PrettyPrint D.Type where
   pp = \case
-    D.T t -> pp t
+    D.T t      -> pp t
     D.TUnknown -> "?"
 
-instance PrettyPrint C.Type where
+instance PrettyPrint SC.Type where
   pp = \case
-    C.T t -> pp t
-    C.TUnknown -> "?"
-    C.PartialObj fs -> curlyList $ (++ ["..."]) $
-      for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
-    C.TError e      -> pp e
-
-instance PrettyPrint C.TypeError where
-  pp = \case
-    C.TypeMismatch exp got -> "Expected " ++ pp exp ++ ", got " ++ pp got
-    C.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ pp ty
-
-instance PrettyPrint C.Id where
-  pp = \case
-    C.Bound _ _ s -> pp s
-    C.Unbound   s -> pp s
+    SC.T t      -> pp t
+    SC.TUnknown -> "?"
+    SC.PartialObj fs -> curlyList $ (++ ["..."]) $
+                        for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
 
 
-instance PrettyPrint R.TypeError where
-  pp = \case
-    R.TEEarlier terror    -> pp terror
+instance PrettyPrint TC.Type where
+  pp = \case (TC.T t) -> pp t
 
-    R.AmbiguousType        -> "ambiguous type ecountered"
-    R.PartialObj fields    -> "ambiguous object type encountered with fields "
-                              ++ (curlyList $ (++ ["..."]) $ for (M.toList fields) $
-                                \ (f, t) -> f ++ ": " ++ pp t)
+instance PrettyPrint SC.Id where
+  pp = \case (SC.Bound _ s) -> pp s
+
+
+--instance PrettyPrint TC.TypeError where
+--  pp = \case
+--    T.TypeMismatch exp got -> "Expected " ++ pp exp ++ ", got " ++ pp got
+--    C.CantCaseAnalyze ty   -> "Cannot use \"Cases ... end\" to deconstruct " ++ pp
+--    TC.AmbiguousType        -> "ambiguous type ecountered"
+
+--    TC.PartialObj fields    -> "ambiguous object type encountered with fields "
+--                              ++ (curlyList $ (++ ["..."]) $ for (M.toList fields) $
+--                                \ (f, t) -> f ++ ": " ++ pp t)

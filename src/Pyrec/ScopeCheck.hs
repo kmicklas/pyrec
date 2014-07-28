@@ -2,28 +2,29 @@
 
 module Pyrec.ScopeCheck where
 
-import           Prelude                 hiding (mapM, sequence)
+import           Prelude                   hiding (mapM, sequence)
 
 import           Control.Applicative
-import           Control.Monad.Reader    hiding (mapM, sequence)
+import           Control.Monad.Reader      hiding (mapM, sequence)
 
-import           Data.List                      (foldl', find)
-import qualified Data.Map          as M
-import           Data.Map                       (Map)
-import           Data.Maybe                     (fromMaybe)
-import           Data.Traversable        hiding (for)
+import           Data.List                        (foldl', find)
+import qualified Data.Map            as M
+import           Data.Map                         (Map)
+import           Data.Maybe                       (fromMaybe)
+import           Data.Traversable          hiding (for)
 
 import           Pyrec.Misc
 
-import qualified Pyrec.IR          as IR        (Pattern)
-import           Pyrec.IR                hiding (Pattern)
-import           Pyrec.IR.Desugar  as D
-import qualified Pyrec.IR.Check    as C
+import qualified Pyrec.IR            as IR        (Pattern)
+import           Pyrec.IR                  hiding (Pattern)
+import           Pyrec.IR.Desugar    as D
+import qualified Pyrec.IR.ScopeCheck as SC
 
 type Pattern = IR.Pattern D.BindT BindN
 data Entry   = Entry Unique DefType
 type Env     = Map Id Entry
-type CK      = Reader Env
+
+type SC      = Maybe
 
 extendMap :: Map Id a -> Map Id a -> Map Id a
 extendMap = flip M.union
@@ -34,31 +35,36 @@ emptyEnv = M.empty
 bindNParam :: BindN -> (Id, Entry)
 bindNParam (BN l i)   = (i, Entry l Val)
 
-bindTParam :: BindT -> (Id, Entry)
+bindTParam :: D.BindT -> (Id, Entry)
 bindTParam (BT l i _) = (i, Entry l Val)
 
-bindT :: Env -> BindT -> C.BindT
-bindT env (BT l i t) = C.BT l i $ scT env t
+bindT :: Env -> D.BindT -> SC SC.BindT
+bindT env (D.BT l i t) = SC.BT l i <$> scT env t
 
-newId env i = case M.lookup i env of
-  Nothing           -> C.Unbound    i
-  Just (Entry l dt) -> C.Bound dt l i
+newId env i immut = do (Entry l dt) <- M.lookup i env
+                       case immut of
+                         (Just dt') -> guard $ dt' == dt
+                         Nothing    -> mzero
+                       return $ SC.Bound l i
 
-scT :: Env -> D.Type -> C.Type
-scT _   TUnknown = C.TUnknown
-scT env (D.T t)  = C.T $ case t of
-  TType             -> TType  
-  TIdent i          -> TIdent $ newId env i
-  TFun   params ret -> TFun   (rT <$> params) $ rT ret
-  TParam params ret -> TParam params          $ scT env' ret
+scT :: Env -> D.Type -> SC SC.Type
+scT _   TUnknown = return $ SC.TUnknown
+scT env (D.T t)  = SC.T <$> case t of
+  TType             -> return TType
+  TIdent i          -> TIdent <$> newId env i (Just Val)
+  TFun   params ret -> TFun <$> (mapM rT params) <*> rT ret
+  TParam params ret -> TParam params <$> scT env' ret
     where env' = extendMap env $ M.fromList $ bindNParam <$> params
-  TObject fields    -> TObject $ rT <$> fields
+  TObject fields    -> TObject <$> mapM rT fields
 
   where rT = scT env
 
-scE :: Env -> D.Expr -> C.Expr
-scE env (D.Constraint l t e) = C.Constraint l (scT env t) (scE env e)
-scE env (D.E          l t e) = C.E l (rT t) $ case e of
+scE :: Env -> D.Expr -> SC SC.Expr
+scE = _
+{-
+scE env (D.Constraint l t e) = (return $ SC.Constraint l)
+                               <*> scT env t <*> scE env e)
+scE env (D.E          l t e) = SC.E l (rT t) $ case e of
 
   Num n -> Num n
   Str s -> Str s
@@ -73,14 +79,14 @@ scE env (D.E          l t e) = C.E l (rT t) $ case e of
     where (decl', env') = case decl of
 
             (Def kind (BT vl vi _) v) ->
-              (Def kind (C.BT vl vi $ rT t) $ scE env' v, env')
+              (Def kind (D.BT vl vi $ rT t) $ scE env' v, env')
               where env' = M.insert vi (Entry vl kind) env
 
             (Data b vs) -> (Data b vs', env'')
               where env'  = uncurry M.insert (bindNParam b) env
                     vs'   = for vs $ \(Variant constr fs) ->
                       Variant constr $ bindT env' <$$> fs
-                    env'' = extendMap env' $ M.fromList $ bindNParam 
+                    env'' = extendMap env' $ M.fromList $ bindNParam
                             <$> (\(Variant c _) -> c) <$> vs
 
   App  f args -> App  (rE f) (rE <$> args)
@@ -92,7 +98,7 @@ scE env (D.E          l t e) = C.E l (rT t) $ case e of
   Cases vt v cases -> Cases (rT vt) (rE v) $ c <$> cases
     where c (Case p e) = Case (pat' p) $ scE (M.union env $ accum p) e
           pat' = \case
-            (Binding (BT l i t)) -> Binding $ C.BT l i $ rT t
+            (Binding (BT l i t)) -> Binding $ D.BT l i $ rT t
             (Constr c pats)      -> Constr c $ pat' <$$> pats
           accum = \case
             (Binding (BT l i _)) -> M.singleton i $ Entry l Val
@@ -104,3 +110,4 @@ scE env (D.E          l t e) = C.E l (rT t) $ case e of
 
   where rE = scE env
         rT = scT env
+-}

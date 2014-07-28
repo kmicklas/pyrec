@@ -51,7 +51,8 @@ import qualified Pyrec.CPS            as K
 import           Pyrec.IR
 
 import qualified Pyrec.IR.Desugar     as D
-import qualified Pyrec.IR.Check       as C
+import qualified Pyrec.IR.ScopeCheck  as SC
+import qualified Pyrec.IR.TypeCheck   as TC
 import qualified Pyrec.IR.Core        as R
 
 import           Pyrec.Foreign
@@ -60,13 +61,17 @@ import qualified Pyrec.Parse          as P
 import qualified Pyrec.Desugar        as D
 import qualified Pyrec.ScopeCheck     as S
 import qualified Pyrec.TypeCheck      as T
-import qualified Pyrec.Report         as R
+--import qualified Pyrec.Report         as R
 import qualified Pyrec.Compile        as C
 import qualified Pyrec.LLVM           as L
 
 
 type Compile a = RWS () [Message R.Error] Word a
 
+lift' :: Maybe a -> Compile a
+lift' = \case
+  Just a  -> return a
+  Nothing -> tell [] >> error "errors in sc or tcq!"
 
 parse :: String -> Either ParseError A.Module
 parse = P.parseString P.program
@@ -75,20 +80,23 @@ desugar :: A.Module -> Compile D.Expr
 desugar = mapRWS f . D.convModule
   where f (a, s, w) = (a, s, R.Earlier <$$> w)
 
-scopeCheck :: T.Env -> D.Expr -> C.Expr
-scopeCheck env = S.scE $ trim2 <$> M.mapKeys trim1 env
+scopeCheck :: T.Env -> D.Expr -> Compile SC.Expr
+scopeCheck env e = lift' $ S.scE (trim2 <$> M.mapKeys trim1 env) e
   where trim1 (D.BN _ i) = i
-        trim2 = \case (Def dt (C.BT l _ _) _) -> S.Entry l dt
-                      (Data   (D.BN l _)   _) -> S.Entry l Val
+        trim2 = \case (Def dt (SC.BT l _ _) _) -> S.Entry l dt
+                      (Data   (D.BN  l _)   _) -> S.Entry l Val
 
-typeCheck :: T.Env -> C.Expr -> C.Expr
-typeCheck = T.tc
+typeCheck :: T.Env -> SC.Expr -> Compile TC.Expr
+typeCheck env e = lift' $ T.synth env e
 
-report :: C.Expr -> Compile R.Expr
+report :: TC.Expr -> Compile R.Expr
+report e = return $ conv e
+  where conv (TC.E u t e) = R.E u t $ conv <$> e
+{-
 report e = rws $ \_ s -> let
   (a, w) = runWriter $ R.report e
   in (a, s, w)
-
+-}
 cps :: R.Expr -> Compile K.Expr
 cps e = rws $ \_ s -> let
   (a, s') = runState (C.cpsProgram "Return" "Except" e) s
@@ -104,11 +112,11 @@ llvm e = do
 cumulativeDesugar :: String -> Either ParseError (Compile D.Expr)
 cumulativeDesugar = desugar <.> parse
 
-cumulativeScopeCheck :: String -> Either ParseError (Compile C.Expr)
-cumulativeScopeCheck = scopeCheck defaultEnv <..> cumulativeDesugar
+cumulativeScopeCheck :: String -> Either ParseError (Compile SC.Expr)
+cumulativeScopeCheck = fmap (scopeCheck defaultEnv =<<) . cumulativeDesugar
 
-cumulativeTypeCheck :: String -> Either ParseError (Compile C.Expr)
-cumulativeTypeCheck = typeCheck defaultEnv <..> cumulativeScopeCheck
+cumulativeTypeCheck :: String -> Either ParseError (Compile TC.Expr)
+cumulativeTypeCheck = fmap (typeCheck defaultEnv =<<) . cumulativeScopeCheck
 
 cumulativeReport :: String -> Either ParseError (Compile R.Expr)
 cumulativeReport = fmap (report =<<) . cumulativeTypeCheck

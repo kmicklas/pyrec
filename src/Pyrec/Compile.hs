@@ -5,13 +5,14 @@ import Data.Word
 import Control.Monad.State
 import Control.Applicative
 
-import qualified Pyrec.IR         as IR
-import qualified Pyrec.IR.Core    as R
-import qualified Pyrec.IR.Check   as C
-import qualified Pyrec.IR.Desugar as D
+import qualified Pyrec.IR            as IR
+import qualified Pyrec.IR.Desugar    as D
+import qualified Pyrec.IR.ScopeCheck as SC
+import qualified Pyrec.IR.TypeCheck  as TC
+import qualified Pyrec.IR.Core       as R
 
-import Pyrec.CPS
-import Pyrec.Misc
+import           Pyrec.CPS
+import           Pyrec.Misc
 
 type CPS = State Word
 
@@ -23,12 +24,12 @@ cpsProgram exitName exceptName e = cps e (n2v exitName, n2v exceptName)
   where n2v n = Var $ Name n Intrinsic
 
 cps :: R.Expr -> (Val, Val) -> CPS Expr
-cps (R.Error e) (_,  _)  = error $ show e
+--cps (R.Error e) (_,  _)  = error $ show e
 cps (R.E l t e) (rk, ek) = case e of
   IR.Num n -> return $ k $ Num n
   IR.Str s -> return $ k $ Str s
 
-  IR.Ident (R.Bound l n) -> return $ k $ Var $ Name n l
+  IR.Ident (SC.Bound l n) -> return $ k $ Var $ Name n l
 
   IR.Fun args b -> do
     rk' <- gen
@@ -38,7 +39,7 @@ cps (R.E l t e) (rk, ek) = case e of
     iden <- gen
     return $ Fix [Fun iden args' (rk', ek') bv] $ k $ Var iden
 
-    where args' = for args $ \ (C.BT l n _) -> Name n l
+    where args' = for args $ \ (TC.BT l n _) -> Name n l
 
   IR.Let decl rest -> do cps (R.E l t $ IR.Graph [decl] rest) (rk, ek)
 

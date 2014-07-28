@@ -34,14 +34,15 @@ library
     ,                     Pyrec.Desugar
     ,                     Pyrec.ScopeCheck
     ,                     Pyrec.TypeCheck
-    ,                     Pyrec.Report
+--    ,                     Pyrec.Report
     ,                     Pyrec.LLVM
     ,                     Pyrec.Compile
 
     ,                     Pyrec.CPS
     ,                     Pyrec.AST
     ,                     Pyrec.IR
-    ,                     Pyrec.IR.Check
+    ,                     Pyrec.IR.ScopeCheck
+    ,                     Pyrec.IR.TypeCheck
     ,                     Pyrec.IR.Core
     ,                     Pyrec.IR.Desugar
 
