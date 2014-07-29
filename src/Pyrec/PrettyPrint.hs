@@ -79,11 +79,11 @@ instance (PrettyPrint bt, PrettyPrint bn, PrettyPrint id,
 instance (PrettyPrint bn, PrettyPrint id, PrettyPrint ty) =>
          PrettyPrint (Type bn id ty) where
   pp = \case
-    TIdent id   -> pp id
-    TFun ps t   -> parenList (pp <$> ps) ++ " -> " ++ pp t
-    TParam ps t -> angleList (pp <$> ps) ++ " -> " ++ pp t
-    TType       -> "Type"
-    TObject fs  -> curlyList $ for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
+    TIdent id    -> pp id
+    TFun ps t    -> parenList (pp <$> ps) ++ " -> " ++ pp t
+    TForall ps t -> angleList (pp <$> ps) ++ " -> " ++ pp t
+    TType        -> "Type"
+    TObject fs   -> curlyList $ for (M.toList fs) $ \ (f, t) -> f ++ ": " ++ pp t
 
 instance PrettyPrint DefType where
   pp Val = " = "

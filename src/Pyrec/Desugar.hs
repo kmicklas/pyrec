@@ -71,7 +71,7 @@ convType :: Node Type -> DS D.Type
 convType (Node p t) = case t of
   TIdent  (Node _ name) -> return $ D.T $ IR.TIdent name
   TFun    tys ty        -> fmap     D.T $ IR.TFun    <$> (mapM recur  tys) <*> recur ty
-  TParam  ids ty        -> fmap     D.T $ IR.TParam  <$> (mapM convBN ids) <*> recur ty
+  TForall  ids ty       -> fmap     D.T $ IR.TForall  <$> (mapM convBN ids) <*> recur ty
   TObject binds         -> fmap     D.T $ IR.TObject <$> M.fromList <$> mapM getPair binds
   where recur = convType . Node p
         getPair :: Bind Id-> DS (IR.FieldName, D.Type)
@@ -94,8 +94,8 @@ convExpr (Node p e) = case e of
 
   Fun (Just tparams) Nothing Nothing retT body -> mkT <*> t <*> body'
     where tparams' = mapM convBN tparams
-          t        = IR.TParam <$> tparams' <*> convMaybeType retT
-          body'    = IR.FunT   <$> tparams' <*> convBlock   p body
+          t        = IR.TForall <$> tparams' <*> convMaybeType retT
+          body'    = IR.FunT    <$> tparams' <*> convBlock   p body
 
   Fun Nothing Nothing (Just params) retT body -> mkT <*> t <*> body'
     where binds    = mapM convBind params

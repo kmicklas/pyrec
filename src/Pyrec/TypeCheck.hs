@@ -133,11 +133,11 @@ typeCheckH env (SC.E          l _ e) t = case e of
     return $ se t' $ Fun params' body'
 
   FunT params body -> do
-    SC.T (TParam inps retT) <- Just t
+    SC.T (TForall inps retT) <- Just t
     guard $ length inps == length params
-    let env'             = extendMap env $ M.fromList $ bindNParam <$> params
-    body'@(E _ retT' _) <- constrain env' body $ retT
-    let t'               = TC.T $ TParam inps retT'
+    let env'                  = extendMap env $ M.fromList $ bindNParam <$> params
+    body'@(E _ retT' _)      <- constrain env' body $ retT
+    let t'                    = TC.T $ TForall inps retT'
     return $ se t' $ FunT params body'
 
   App f args -> do
@@ -148,13 +148,13 @@ typeCheckH env (SC.E          l _ e) t = case e of
     return $ se t' $ App f' args'
 
   AppT f args -> do
-    let params              = for [1..length args] $ \n -> BN l $ 'T' : show n
-        ft                  = SC.T $ TParam params TUnknown
-    f'@(E _ ft' _)          <- constrain env f ft
-    T (TParam params' retT) <- Just $ ft'
-    args'                   <- mapM (checkT env) args
-    substs                  <- M.fromList <$> map2S (,) params' args'
-    t'                      <- cToR =<< unifyWithSubsts env substs t (rToC retT)
+    let params                = for [1..length args] $ \n -> BN l $ 'T' : show n
+        ft                    = SC.T $ TForall params TUnknown
+    f'@(E _ ft' _)           <- constrain env f ft
+    T (TForall params' retT) <- Just $ ft'
+    args'                    <- mapM (checkT env) args
+    substs                   <- M.fromList <$> map2S (,) params' args'
+    t'                       <- cToR =<< unifyWithSubsts env substs t (rToC retT)
     return $ se t' $ AppT f' args'
 
   Cases vt v cases -> do
@@ -251,12 +251,12 @@ checkCT env = \case
     Just (Data    _                        _) -> return t
     _                                         -> mzero
 
-  SC.T (TParam params retT)  -> checkCT env' retT
+  SC.T (TForall params retT)  -> checkCT env' retT
     where env' = extendMap env $ M.fromList $ bindNParam <$> params
 
-  SC.T inner                 -> SC.T       <$> mapM (checkCT env) inner
-  PartialObj inner           -> PartialObj <$> mapM (checkCT env) inner
-  t@(TUnknown)               -> return t
+  SC.T inner                  -> SC.T       <$> mapM (checkCT env) inner
+  PartialObj inner            -> PartialObj <$> mapM (checkCT env) inner
+  t@(TUnknown)                -> return t
 
 -- refines a result type
 refineR :: Env -> CType -> RType -> TC RType
@@ -283,11 +283,11 @@ unifyWithSubsts env substs l r = case (l, r) of
     params <- join $ sequence <$> map2S recur aParams bParams
     TFun params <$> recur aRes bRes
 
-  (SC.T (TParam aParams aRes), SC.T (TParam bParams bRes)) -> SC.T <$> do
+  (SC.T (TForall aParams aRes), SC.T (TForall bParams bRes)) -> SC.T <$> do
     let f a (BN l i) = (a , TC.T $ TIdent $ Bound l i)
     news            <- map2S f aParams bParams
     let substs'      = extendMap substs $ M.fromList news
-    TParam aParams <$> unifyWithSubsts env substs' aRes bRes
+    TForall aParams <$> unifyWithSubsts env substs' aRes bRes
 
   ((SC.T (TObject o1)), (SC.T (TObject o2))) -> SC.T <$> TObject <$> do
     guard $ M.size o1 == M.size o2             -- same size

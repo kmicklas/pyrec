@@ -53,8 +53,8 @@ data Expr
 
 data Type bn id ty
   = TIdent id
-  | TFun [ty] ty   -- (A, B, C) -> R
-  | TParam [bn] ty -- <A, B, C> -> T
+  | TFun [ty] ty    -- (A, B, C) -> R
+  | TForall [bn] ty -- <A, B, C> -> T
 
   | TType -- not used in System F, but useful for errors now and future extensions later...
 

@@ -52,8 +52,8 @@ data Let id
 
 data Type
   = TIdent Id
-  | TFun   [Type] Type
-  | TParam [Id]   Type
+  | TFun    [Type] Type
+  | TForall [Id]   Type
   | TObject [Bind Id]
   deriving (Eq, Show, Ord)
 

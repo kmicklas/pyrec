@@ -51,12 +51,12 @@ newId env i immut = do (Entry l dt) <- M.lookup i env
 scT :: Env -> D.Type -> SC SC.Type
 scT _   TUnknown = return $ SC.TUnknown
 scT env (D.T t)  = SC.T <$> case t of
-  TType             -> return TType
-  TIdent i          -> TIdent <$> newId env i (Just Val)
-  TFun   params ret -> TFun <$> (mapM rT params) <*> rT ret
-  TParam params ret -> TParam params <$> scT env' ret
+  TType              -> return TType
+  TIdent i           -> TIdent <$> newId env i (Just Val)
+  TFun    params ret -> TFun <$> (mapM rT params) <*> rT ret
+  TForall params ret -> TForall params <$> scT env' ret
     where env' = extendMap env $ M.fromList $ bindNParam <$> params
-  TObject fields    -> TObject <$> mapM rT fields
+  TObject fields     -> TObject <$> mapM rT fields
 
   where rT = scT env
 
