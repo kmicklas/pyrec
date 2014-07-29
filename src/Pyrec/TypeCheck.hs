@@ -28,12 +28,12 @@ import           Pyrec.IR.TypeCheck               (Expr(..), Type(..), CType, RT
 
 deriving instance Ord BindN
 
-type Entry   = Decl TC.BindT BindN ()
-type Env     = Map BindN Entry
+type Entry = Decl TC.BindT BindN ()
+type Env   = Map BindN Entry
 
-type TC      = Maybe
+type TC    = Maybe
 
-type Pattern = IR.Pattern RType BindN
+type Pattern t = IR.Pattern t BindN
 
 extendMap :: Map BindN a -> Map BindN a -> Map BindN a
 extendMap = flip M.union
@@ -44,8 +44,8 @@ bindNParam k@(BN l i) = (k, Def Val (TC.BT l i $ TC.T TType) ())
 bindTParam :: TC.BindT -> (BindN, Entry)
 bindTParam b@(TC.BT l i _) = (BN l i , Def Val b ())
 
---extendT :: BindT -> Map BindN Entry -> Map BindN Entry
---extendT = uncurry M.insert . bindTParam
+extendT :: TC.BindT -> Env -> Env
+extendT = uncurry M.insert . bindTParam
 
 mkCT = SC.T
 mkRT = TC.T
@@ -156,59 +156,49 @@ typeCheckH env (SC.E          l _ e) t = case e of
     substs                  <- M.fromList <$> map2S (,) params' args'
     t'                      <- cToR =<< unifyWithSubsts env substs t (rToC retT)
     return $ se t' $ AppT f' args'
-{-
-  Cases vt v cases -> se t'' $ Cases vt' v' cases'
-    where v'@(C.E _ vt' _) = constrain env v vt
 
-          bind :: SC.Type -> Pattern -> (Bool , Pattern , Env)
-          bind t p = case p of
+  Cases vt v cases -> do
+    v'@(E _ vt' _) <- constrain env v vt
 
-            (Binding b@(BT l i t')) -> (True, Binding $ b', extendT b' M.empty )
-              where t'' = unify env t t'
-                    b'  = BT l i t''
+    let bind :: RType -> Pattern BindT -> TC (Pattern TC.BindT , Env)
+        bind t = \case
 
-            (Constr ci pats) -> result
-              where ensureIdent (T (TIdent (Bound Val l i))) = Just $ BN l i
-                    ensureIdent _                            = Nothing
+          (Binding b@(BT l i t')) -> do
+            b' <- TC.BT l i <$> refineR env t' t
+            return (Binding $ b', extendT b' M.empty )
 
-                    -- outer maybe signifies error, inner maybe is use to distinguish
-                    -- pyret's "| Constructor()" vs "| Constructor"
-                    params :: Maybe (Maybe [C.Type])
-                    params = do (Variant _ params) <-
-                                  ensureIdent t
-                                  >>= (\i -> M.lookup i env)
-                                  >>= (\x -> case x of
-                                          Data _ vs -> Just vs
-                                          _         -> Nothing)
+          (Constr ci pats) -> do
+            let ensureIdent (T (TIdent (Bound l i))) = return $ BN l i
+                ensureIdent _                        = mzero
 
-                                  >>= find (\(Variant vi _) -> vi == ci)
-                                guard $ (length <$> params) == (length <$> pats)
-                                return $ flip (<$$>) params $ \(BT _ _ t) -> t
+            -- outer TC signifies error, inner maybe is use to distinguish
+            -- pyret's "| Constructor()" vs "| Constructor"
+            params :: Maybe [RType] <- do
+              (Variant _ params) <- do
+                i <- ensureIdent t
+                (Data _ vs) <- M.lookup i env
+                find (\(Variant vi _) -> vi == ci) vs
+              return $ (\(TC.BT _ _ t) -> t) <$$> params
 
-                    results :: Maybe [(Bool, Pattern , Env)]
-                    (newerr, results) = case params of
-                      Nothing     -> (False , bind TUnknown <$$> pats)
-                      Just params -> (True  , zipWith bind <$> params <*> pats)
+            pats' :: Maybe [(Pattern TC.BindT , Env)] <- case (params, pats) of
+              (Nothing, Nothing) -> return Nothing
+              (Just ts, Just ps) -> Just <$> join $ sequence
+                                    <$> map2S bind ts ps
+              _                  -> mzero
 
-                    result = case results of
-                      Nothing   -> ( newerr
-                                   , Constr ci Nothing
-                                   , M.empty)
-                      Just list -> ( and $ newerr : errs
-                                   , Constr ci $ Just pats
-                                   , M.unions envs)
-                        where (errs, pats, envs) = unzip3 list
+            let env' = extendMap env $ M.unions $ fromMaybe [] $ snd <$$> pats'
+            return (Constr ci $ fst <$$> pats' , env')
 
-          checkCase :: (Bool, SC.Type)  -> Case SC.BindT BindN SC.Expr ->
-                       ((Bool , SC.Type) , Case SC.BindT BindN SC.Expr)
-          checkCase (err, t) (Case pat body) = ((err && err' , t') , Case pat' body')
-            where (err' , pat' , caseEnv) = bind vt' pat
-                  body'@(C.E _ t'  _)     = constrain caseEnv body t
+    let checkCase :: CType -> Case BindT BindN SC.Expr
+                  -> TC (Case TC.BindT BindN TC.Expr, CType)
+        checkCase t (Case pat body) = do
+          (pat' , env')     <- bind vt' pat
+          body'@(E _ t'  _) <- constrain env' body t
+          return (Case pat' body', rToC t')
 
-          ((err , t') , cases') = mapAccumL checkCase (True, t) cases
+    (cases', t') <- mapAccumM checkCase t cases
+    se <$> cToR t' <*> return (Cases vt' v' cases')
 
-          t'' = if err then TError $ SC.CantCaseAnalyze t' else t'
--}
   EmptyObject -> se <$> (refineR env t $ T $ TObject M.empty)
                     <*> return EmptyObject
 
