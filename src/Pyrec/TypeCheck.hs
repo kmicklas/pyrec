@@ -2,11 +2,11 @@
 
 module Pyrec.TypeCheck where
 
-import           Prelude                   hiding (mapM, sequence)
+import           Prelude                   hiding (mapM,       sequence)
 
 import           Control.Applicative
-import           Control.Monad             hiding (mapM, sequence)
-import           Control.Monad.Reader      hiding (mapM, sequence)
+import           Control.Monad             hiding (mapM, forM, sequence)
+import           Control.Monad.Reader      hiding (mapM, forM, sequence)
 
 import           Data.List                        (foldl', find)
 import qualified Data.Map            as M
@@ -27,31 +27,24 @@ import           Pyrec.IR.TypeCheck               (CType, RType)
 
 deriving instance Ord BindN
 
-type Pattern = IR.Pattern RType BindN
-type Entry   = Decl BindT BindN ()
+type Entry   = Decl TC.BindT BindN ()
 type Env     = Map BindN Entry
 
 type TC      = Maybe
+
+type Pattern = IR.Pattern RType BindN
 
 extendMap :: Map BindN a -> Map BindN a -> Map BindN a
 extendMap = flip M.union
 
 bindNParam :: BindN -> (BindN, Entry)
-bindNParam k@(BN l i) = (k, Def Val (BT l i $ SC.T TType) ())
+bindNParam k@(BN l i) = (k, Def Val (TC.BT l i $ TC.T TType) ())
 
-bindTParam :: BindT -> (BindN, Entry)
-bindTParam (BT l i t) = (BN l i, Def Val (BT l i t) ())
+bindTParam :: TC.BindT -> (BindN, Entry)
+bindTParam b@(TC.BT l i _) = (BN l i , Def Val b ())
 
-extendT :: BindT -> Map BindN Entry -> Map BindN Entry
-extendT = uncurry M.insert . bindTParam
-
--- refines a constraint type
-refineC :: Env -> CType -> CType -> TC CType
-refineC = _
-
--- refines a result type
-refineR :: Env -> CType -> RType -> TC RType
-refineR = _
+--extendT :: BindT -> Map BindN Entry -> Map BindN Entry
+--extendT = uncurry M.insert . bindTParam
 
 mkCT = SC.T
 mkRT = TC.T
@@ -71,37 +64,40 @@ synth env e = typeCheckH env e t
 -- big helper function, recur with constrain or synth
 typeCheckH :: Env -> SC.Expr -> CType -> TC TC.Expr
 typeCheckH env (SC.Constraint _ _ e) t = constrain env e t
-typeCheckH env (SC.E          l _ e) t = _ {- case e of
+typeCheckH env (SC.E          l _ e) t = case e of
 
   -- Need too look up to get proper loc
-  Num n -> se (refineR env t $ SC.T $ TIdent $ Bound Val Intrinsic "Number") $ Num n
-  Str s -> se (refineR env t $ SC.T $ TIdent $ Bound Val Intrinsic "String") $ Str s
+  Num n -> se <$> (refineR env t $ TC.T $ TIdent $ Bound Intrinsic "Number")
+              <*> (return $ Num n)
+  Str s -> se <$> (refineR env t $ TC.T $ TIdent $ Bound Intrinsic "String")
+              <*> (return $ Str s)
 
-  Ident (Unbound     _) -> se TUnknown e
-  Ident (Bound _ il ii) -> k e
-    where k = case M.lookup (BN il ii) env of
-            Nothing                    -> error "internal: identifier was reported bound"
-            Just (Def _ (BT _ _ t') _) -> se $ refineR env t t'
-            Just (Data  _           _) -> se $ refineR env t $ mkCT TType
+  Ident i@(Bound il ii) -> se <$> (refineR env t it') <*> (return $ Ident i)
+    where it' :: RType = case M.lookup (BN il ii) env of
+            Nothing -> error "internal: identifier was reported bound"
+            Just (Def _ (TC.BT _ _ t') _) -> t'
+            Just (Data  _              _) -> mkRT TType
 
-  Let (Def kind b@(BT vl vi vt) v) e -> SC.E l t' $ Let newDef e'
-    where v'@(TC.E _ vt' _) = constrain env v vt
-          newDef            = Def kind (BT vl vi vt') v'
-          env'              = extendT b env
-          e'@(TC.E _ t'  _) = constrain env' e t
+  Let (Def kind b@(BT vl vi vt) v) e -> do
+    v'@(TC.E _ vt' _) <- constrain env v vt
+    let newDef x       = Def kind (TC.BT vl vi vt') x
+        env'           = M.insert (BN vl vi) (newDef ()) env
+    e'@(TC.E _ t'  _) <- constrain env' e t
+    return $ TC.E l t' $ Let (newDef v') e'
 
-  Let (Data i@(BN _ di) variants) e -> se t' $ Let data' e'
-    where fixVariant :: Variant BindT BindN -> Variant BindT BindN
-          fixVariant (Variant vi args) = Variant vi $ fixField <$$> args
-            where fixField :: BindT -> BindT
-                  fixField (BT bl bi t) = BT bl bi $ checkT env1 t
+{-
+  Let (Data i@(BN _ di) variants) e -> do
+    let fixVariant :: Variant BindT BindN -> Variant BindT BindN
+        fixVariant (Variant vi args) = Variant vi $ fixField <$$> args
+          where fixField :: BindT -> BindT
+                fixField (BT bl bi t) = BT bl bi $ checkT env1 t
 
-          bindConstrs :: Variant D.BindT BindN -> (BindN , Entry)
-          bindConstrs (Variant b@(BN vl vi) ps) =
-            (b, Def Val (BT vl vi $ mkRT $ k $ TIdent $ Bound Val l di) ())
-            where k = case ps of
-                    Nothing     -> id
-                    Just params -> TFun (for params $ \(TC.BT _ _ t) -> t) . mkRT
+        bindConstrs :: Variant D.BindT BindN -> (BindN , Entry)
+        bindConstrs (Variant b@(BN vl vi) ps) =
+          (b, Def Val (BT vl vi $ mkRT $ k $ TIdent $ Bound Val l di) ())
+          where k = case ps of
+                  Nothing     -> id
+                  Just params -> TFun (for params $ \(TC.BT _ _ t) -> t) . mkRT
 
           envData         :: Entry -- phantom ex type parameter nessesitates rebuild
           envData           = Data i variants
@@ -112,51 +108,51 @@ typeCheckH env (SC.E          l _ e) t = _ {- case e of
           e'@(TC.E _ t'  _) = constrain env2 e t
           data'             = Data i variants'
 
-  Assign i v -> se t'' $ Assign i v' -- immutability errors caught downstream in Pyrec.Report
-    where t' = case i of
-            Unbound _     -> t
-            Bound _ al ai -> case M.lookup (BN al ai) env of
-              Nothing                    -> error "internal: identifier was reported bound"
-              Just (Def _ (BT _ _ t') _) -> t'
-              Just (Data  _           _) -> mkRT TType
+    se t' $ Let data' e'
+-}
+  Assign i@(Bound il ii) v -> do
+    let t' = case M.lookup (BN il ii) env of
+          Nothing -> error "internal: identifier was reported bound"
+          Just (Def _ (TC.BT _ _ t') _) -> t'
+          Just (Data  _              _) -> mkRT TType
+    v'@(TC.E _ t'' _) <- constrain env v $ rToC t'
+    return $ se t'' $ Assign i v'
 
-          v'@(TC.E _ t'' _) = constrain env v t'
+  Fun params body -> do
+    T (TFun pts retT)      <- Just t -- returns Nothing if no match, odd but convenient
 
-  Fun params body -> se t' $ Fun params' body'
-    where params'               = for params $ \(BT l i t) -> BT l i $ checkT env t
-          env'                  = extendMap env $ M.fromList $ bindTParam <$> params'
-          body'@(TC.E _ retT _) = synth env' body
-          t'                    = unify env t $ SC.T
-                                  $ TFun (for params' $ \(BT _ _ pt) -> pt) retT
+    let checkArg t1 (BT l i t2) = TC.BT l i <$> (checkT env =<< refineC env t1 t2)
 
-  FunT params body -> se t' $ FunT params body'
-    where env'                  = extendMap env $ M.fromList $ bindNParam <$> params
-          body'@(TC.E _ retT _) = synth env' body
-          t'                    = unify env t $ SC.T $ TParam params retT
+    params'                <- join $ sequence <$> map2S checkArg pts params
+    let env'                = extendMap env $ M.fromList $ bindTParam <$> params'
+    body'@(TC.E _ retT' _) <- constrain env' body $ retT
+    let t'                  = TC.T $ TFun ((\(TC.BT _ _ t) -> t) <$> params') retT'
+    return $ se t' $ Fun params' body'
 
-  App f args -> se t' $ App f' args'
-    where f'@(TC.E _ ft' _)     = synth env f
-          (t' , args')          = case ft' of
-             TC.T (TFun pts retT) -> (k, args')
-               where k     = se $ refineR t retT
-                     args' = case map2S (constrain env) pts args of
-                       Just args'  -> args'
-                       Nothing     -> _
-             _                    -> _ -- SC.TError $ SC.TypeMismatch ft ft'
+  FunT params body -> do
+    T (TParam inps retT)   <- Just t
+    guard $ length inps == length params
+    let env'                = extendMap env $ M.fromList $ bindNParam <$> params
+    body'@(TC.E _ retT' _) <- constrain env' body $ retT
+    let t'                  = TC.T $ TParam inps retT'
+    return $ se t' $ FunT params body'
 
-  AppT f args -> se t' $ AppT f' args
-    where f'@(TC.E fl ft fe)   = synth env f
-          t'                   =
-
-          expected             = SC.T $ TParam t $ for [1..length args]
-                                 $ \n -> BN fl $ 'T' : show n
-          (t', ft')            = case ft of
-            SC.T (TParam params retT) ->
-              (,ft) $ case map2S (,) params (checkT env <$> args) of
-                Just substs -> unify env t $ subst (M.fromList substs) retT
-                Nothing     -> TError $ TypeMismatch t retT
-            _                        -> (ft, TError $ TypeMismatch expected ft)
-          f'                   = SC.E fl ft' fe
+  App f args -> do
+    let ft              = T $ TFun (replicate (length args) TUnknown) t
+    f'@(TC.E _ ft' _)  <- constrain env f ft
+    TC.T (TFun pts t') <- Just $ ft'
+    args'              <- join $ sequence <$> map2S (constrain env) args (rToC <$> pts)
+    return $ se t' $ App f' args'
+{-
+  AppT f args -> do
+    let params = for [1..length args] $ \n -> BN l $ 'T' : show n
+        ft                     = T $ TParam params TUnknown
+    f'@(TC.E _ ft' _)          <- constrain env f ft
+    TC.T (TParam params' retT) <- Just $ ft'
+    args'                      <- mapM (checkT env) args
+    substs                     <- join $ sequence <$> map2S (,) params' args'
+    t'                         <- _ env t $ _ (M.fromList substs) retT
+    return $ se t' $ AppT f' args'
 
   Cases vt v cases -> se t'' $ Cases vt' v' cases'
     where v'@(C.E _ vt' _) = constrain env v vt
@@ -238,10 +234,10 @@ typeCheckH env (SC.E          l _ e) t = _ {- case e of
             SC.PartialObj p    -> tryRefine p
             _                 -> t'
           tryRefine map      = fromMaybe t' $ M.lookup fi map
+-}
+  where se = TC.E l
 
-  where se = SC.E l
-
-
+{-
 subst :: Map BindN SC.Type -> SC.Type -> SC.Type
 subst substs = \case
   t@(C.T (TIdent (Bound Val l i))) -> fromMaybe t $ M.lookup (BN l i) substs
@@ -252,84 +248,82 @@ subst substs = \case
   t@(TError _)                     -> t
   t@(TUnknown)                     -> t -- redundancy to future-proof
   where recur = subst substs
+-}
 
-checkT :: Env -> SC.Type -> SC.Type
-checkT env = \case
-  t@(C.T (TIdent (Bound Val l i))) -> case M.lookup (BN l i) env of
-    Just (Def Val (BT _ _ (C.T TType)) _) -> t
-    Just (Data    _                    _) -> t
-    _                                     -> error "unbound, or non-type identifier"
-  t@(C.T (TIdent (Unbound _)))     -> t
-  SC.T (TParam params retT)         ->
-    flip checkT retT $ extendMap env $ M.fromList $ bindNParam <$> params
-  SC.T inner                        -> SC.T        $ checkT env <$> inner
-  PartialObj fields                -> PartialObj $ checkT env <$> fields
-  t@(TError _)                     -> t
-  t@(TUnknown)                     -> t -- redundancy to future-proof
+rToC :: RType -> CType
+rToC (TC.T inner) = T $ rToC <$> inner
 
-unify :: Env -> SC.Type -> SC.Type -> SC.Type
-unify env t1 t2 = unifyWithSubsts env M.empty t1 t2
+cToR :: CType -> TC RType
+cToR = \case
+  T inner      -> TC.T <$> mapM cToR inner
+  PartialObj _ -> mzero
+  TUnknown     -> mzero
+
+checkT :: Env -> CType -> TC RType
+checkT env t = cToR =<< checkCT env t
+
+checkCT :: Env -> CType -> TC CType
+checkCT env = \case
+  t@(T (TIdent (Bound l i))) -> case M.lookup (BN l i) env of
+    Just (Def Val (TC.BT _ _ (TC.T TType)) _) -> return t
+    Just (Data    _                        _) -> return t
+    _                                         -> mzero
+
+  T (TParam params retT)     -> checkCT env' retT
+    where env' = extendMap env $ M.fromList $ bindNParam <$> params
+
+  T inner                    -> T          <$> mapM (checkCT env) inner
+  PartialObj inner           -> PartialObj <$> mapM (checkCT env) inner
+  t@(TUnknown)               -> return t
+
+-- refines a result type
+refineR :: Env -> CType -> RType -> TC RType
+refineR env l r = checkT env =<< (refineC env l $ rToC r)
+
+-- refines a constraint type
+refineC :: Env -> CType -> CType -> TC CType
+refineC env l r = unifyWithSubsts env M.empty l r
 
 -- expected then got
-unifyWithSubsts :: Env -> Map BindN BindN -> SC.Type -> SC.Type -> SC.Type
-unifyWithSubsts env substs _a _b = case (_a, _b) of
-  (C.T TType, SC.T TType) -> SC.T TType
+unifyWithSubsts :: Env -> Map BindN RType -> CType -> CType -> TC CType
+unifyWithSubsts env substs l r = case (l, r) of
+  (T TType, T TType) -> return $ T TType
 
-  (C.T (TIdent i@(Bound Val al ai)), SC.T (TIdent (Bound Val bl bi))) ->
-    try $ SC.T <$> do
-      -- either a substitutes for b, or a has no substitution and a == b
-      guard $ case M.lookup a substs of
-        Just a' -> a' == b
-        Nothing -> a  == b
-      return $ TIdent i
-    where a = (BN al ai)
-          b = (BN bl bi)
+  (T (TIdent (Bound bl bi)), _) -> case M.lookup key substs of
+    -- either a substitutes for b, and we recur with that
+    Just l'  -> unifyWithSubsts env M.empty (rToC l') r
+    -- or a has no substitution and a must equal b
+    Nothing  -> do guard $ l == r
+                   return l
+    where key = BN bl bi
 
-  (C.T (TFun aParams aRes), SC.T (TFun bParams bRes)) ->
-    try $ SC.T <$> do
-      params <- map2S recur aParams bParams
-      return $ TFun params $ recur aRes bRes
+  (T (TFun aParams aRes), T (TFun bParams bRes)) -> T <$> do
+    params <- join $ sequence <$> map2S recur aParams bParams
+    TFun params <$> recur aRes bRes
 
-  (C.T (TParam aParams aRes), SC.T (TParam bParams bRes)) ->
-    try $ SC.T <$> do
-      news <- map2S (,) aParams bParams
-      let substs' = extendMap substs $ M.fromList news
-      return $ TParam aParams $ unifyWithSubsts env substs' aRes bRes
+--  (T (TParam aParams aRes), T (TParam bParams bRes)) -> T <$> do
+--    news <- map2S (,) aParams bParams
+--    let substs' = extendMap substs $ M.fromList news
+--    return $ TParam aParams $ unifyWithSubsts env substs' aRes bRes
 
-  ((C.T (TObject o1)), (C.T (TObject o2))) ->
-    try $ SC.T <$> TObject <$> do
-      guard $ M.size o1 == M.size o2             -- same size
-      let match = M.intersectionWith recur o1 o2 -- unify common elements
-      guard $ M.size match == M.size o1          -- intersection same size means ident keys
-      return match
+  ((T (TObject o1)), (T (TObject o2))) -> T <$> TObject <$> do
+    guard $ M.size o1 == M.size o2             -- same size
+    let match = M.intersectionWith recur o1 o2 -- unify common elements
+    guard $ M.size match == M.size o1          -- intersection same size means ident keys
+    sequence match
 
-  (l@(C.T (TObject _)), r@(C.PartialObj _)) ->
-    recur r l                                    -- flip args and recur
-  (C.PartialObj p, SC.T (TObject o)) ->
-    try $ SC.T <$> TObject <$> do
-      guard $ M.isSubmapOfBy (\_ _ -> True) p o  -- is partial subset
-      let update = M.intersectionWith recur o p  -- unify fields in common
-      return $ M.union update o                  -- perform updates
+  ((T (TObject _)), (PartialObj _)) ->
+    recur r l                                  -- flip args and recur
+  (PartialObj p, T (TObject o)) -> T <$> TObject <$> do
+    guard $ M.isSubmapOfBy (\_ _ -> True) p o  -- is partial subset
+    let update = M.intersectionWith recur o p  -- unify fields in common
+    M.union <$> sequence update <*> return o   -- perform updates
 
-  (C.PartialObj p1, SC.PartialObj p2) -> SC.PartialObj $ p1 `M.union` p2
+  (PartialObj p1, PartialObj p2) -> return $ PartialObj $ p1 `M.union` p2
 
-  (C.TUnknown, other)      -> checkT env other
-  (other,      SC.TUnknown) -> checkT env other
+  (TUnknown,   other)     -> checkCT env other
+  (other,      TUnknown)  -> checkCT env other
 
-  (TError e1,  TError e2)  -> TError $ unifyError env substs e1 e2
-  (a,          b)          -> TError $ TypeMismatch a b
+  (a,          b)         -> mzero
 
   where recur = unifyWithSubsts env substs
-        try :: Maybe SC.Type -> SC.Type
-        try t = case t of
-          Just t  -> t
-          Nothing -> TError $ TypeMismatch _a _b
-
-unifyError :: Env -> Map BindN BindN -> TypeError -> TypeError -> TypeError
-unifyError env substs _a _b = case (_a, _b) of
-  (TypeMismatch a1 a2, TypeMismatch b1 b2) -> TypeMismatch (mutRecur a1 b1) $ mutRecur a2 b2
-  (CantCaseAnalyze a,  CantCaseAnalyze b)  -> CantCaseAnalyze $ mutRecur a b
-  _                                        -> error "I DON'T EVEN"
-  where mutRecur = unifyWithSubsts env substs
-
--}
