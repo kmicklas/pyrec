@@ -86,31 +86,32 @@ typeCheckH env (SC.E          l _ e) t = case e of
     e'@(E _ t'  _) <- constrain env' e t
     return $ E l t' $ Let (newDef v') e'
 
-{-
   Let (Data i@(BN _ di) variants) e -> do
-    let fixVariant :: Variant BindT BindN -> Variant BindT BindN
-        fixVariant (Variant vi args) = Variant vi $ fixField <$$> args
-          where fixField :: BindT -> BindT
-                fixField (BT bl bi t) = BT bl bi $ checkT env1 t
+    -- | env + dummy type with same name. Just for typechecking variants.
+    let envDummy = M.insert i (Data i []) env
 
-        bindConstrs :: Variant D.BindT BindN -> (BindN , Entry)
+    let fixVariant :: Variant BindT BindN -> TC (Variant TC.BindT BindN)
+        fixVariant (Variant vi args) = Variant vi <$> (mapM . mapM) fixField args
+          where fixField :: BindT -> TC TC.BindT
+                fixField (BT bl bi t) = TC.BT bl bi <$> checkT envDummy t
+
+    variants' <- mapM fixVariant variants
+
+    let bindConstrs :: Variant TC.BindT BindN -> (BindN , Entry)
         bindConstrs (Variant b@(BN vl vi) ps) =
-          (b, Def Val (BT vl vi $ mkRT $ k $ TIdent $ Bound Val l di) ())
+          (b, Def Val (TC.BT vl vi $ mkRT $ k $ TIdent $ Bound l di) ())
           where k = case ps of
                   Nothing     -> id
                   Just params -> TFun (for params $ \(TC.BT _ _ t) -> t) . mkRT
 
-          envData         :: Entry -- phantom ex type parameter nessesitates rebuild
-          envData           = Data i variants
-          -- | env + type, without constructors
-          env1              = M.insert i envData env
-          env2              = extendMap env1 $ M.fromList $ (i, envData) : fmap bindConstrs variants'
-          variants'         = fixVariant <$> variants
-          e'@(E _ t'  _) = constrain env2 e t
-          data'             = Data i variants'
 
-    se t' $ Let data' e'
--}
+    let data' = Data i variants'
+        env'  = extendMap envDummy $ M.fromList
+                $ (i, data') : fmap bindConstrs variants'
+
+    e'@(E _ t'  _) <- constrain env' e t
+    return $ se t' $ Let data' e'
+
   Assign i@(Bound il ii) v -> do
     let t' = case M.lookup (BN il ii) env of
           Nothing -> error "internal: identifier was reported bound"
