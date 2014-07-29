@@ -6,7 +6,10 @@
 
 module Pyrec.Misc where
 
+import  Prelude                 hiding (mapM,       sequence)
+
 import Control.Applicative
+import Control.Monad.State.Lazy hiding (mapM, forM, sequence)
 
 import Data.Word
 
@@ -38,6 +41,10 @@ map2S :: (a -> b -> r) -> ([a] -> [b] -> Maybe [r])
 map2S _ [] []         = Just []
 map2S f (a:as) (b:bs) = (f a b :) <$> map2S f as bs
 map2S _ _ _           = Nothing
+
+mapAccumM :: (Traversable t, Monad m)
+           => (a -> b -> m (c, a)) -> a -> t b -> m (t c, a)
+mapAccumM f s t = runStateT (mapM (StateT . flip f) t) s
 
 showLoc :: SourcePos -> String
 showLoc p = show $ abs $ hash (sourceName p,
