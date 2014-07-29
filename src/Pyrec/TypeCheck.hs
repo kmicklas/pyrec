@@ -168,19 +168,18 @@ typeCheckH env (SC.E          l _ e) t = case e of
             return (Binding $ b', extendT b' M.empty )
 
           (Constr ci pats) -> do
-            let ensureIdent (T (TIdent (Bound l i))) = return $ BN l i
-                ensureIdent _                        = mzero
+            (Variant _ (params :: Maybe [TC.BindT])) <- do
+              T (TIdent (Bound il ii)) <- return t
+              let b                     = (BN il ii)
+              Data b' vs               <- M.lookup b env
+              guard $ b == b' -- don't want another type's constructor
+              find (\(Variant vi _) -> vi == ci) vs
 
             -- outer TC signifies error, inner maybe is use to distinguish
             -- pyret's "| Constructor()" vs "| Constructor"
-            params :: Maybe [RType] <- do
-              (Variant _ params) <- do
-                i <- ensureIdent t
-                (Data _ vs) <- M.lookup i env
-                find (\(Variant vi _) -> vi == ci) vs
-              return $ (\(TC.BT _ _ t) -> t) <$$> params
+            let paramTs :: Maybe [RType] = (\(TC.BT _ _ t) -> t) <$$> params
 
-            pats' :: Maybe [(Pattern TC.BindT , Env)] <- case (params, pats) of
+            pats' :: Maybe [(Pattern TC.BindT , Env)] <- case (paramTs, pats) of
               (Nothing, Nothing) -> return Nothing
               (Just ts, Just ps) -> Just <$> join $ sequence
                                     <$> map2S bind ts ps
